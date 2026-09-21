@@ -1,0 +1,26 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "nama": "Jakarta Selatan",
+        "kode": "3174"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [106.76, -6.22],
+            [106.85, -6.22],
+            [106.89, -6.27],
+            [106.86, -6.33],
+            [106.78, -6.33],
+            [106.74, -6.27],
+            [106.76, -6.22]
+          ]
+        ]
+      }
+    }
+  ]
+}

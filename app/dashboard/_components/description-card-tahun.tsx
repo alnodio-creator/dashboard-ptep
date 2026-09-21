@@ -1,0 +1,93 @@
+"use client";
+
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { CalendarDays, CalendarFold, Clock3, History } from "lucide-react";
+import { ReactNode } from "react";
+
+export function DescriptionCardTahun({
+  label,
+  totalValue,
+  logo = <CalendarFold className="size-5" />,
+}: {
+  label: string;
+  totalValue: number | string;
+  logo?: ReactNode;
+}) {
+  return (
+    <Card className="group relative h-full overflow-hidden border-border/50 bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+      <CardContent className="relative p-5">
+        {/* Decorative Background */}
+        <div className="pointer-events-none absolute -right-8 -top-8 size-28 rounded-full bg-amber-500/5 transition-transform duration-500 group-hover:scale-125" />
+
+        {/* Header */}
+        <div className="relative flex items-start justify-between gap-4">
+          <div className="flex min-h-[48px] flex-1 flex-col justify-center">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground">
+                {label}
+              </span>
+
+              <Badge
+                variant="secondary"
+                className="rounded-md px-2 py-0.5 text-[10px] font-medium"
+              >
+                PERIODE
+              </Badge>
+            </div>
+          </div>
+
+          {/* Icon */}
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-amber-200/60 bg-amber-50 text-amber-600 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400">
+            {logo}
+          </div>
+        </div>
+
+        {/* Main Year */}
+        <div className="relative mt-4">
+          <div className="flex items-end gap-2">
+            <p className="text-4xl font-bold tracking-tight text-foreground">
+              {totalValue}
+            </p>
+
+            <span className="mb-1 text-sm font-medium text-muted-foreground">
+              Tahun
+            </span>
+          </div>
+
+          <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <CalendarDays className="size-3.5" />
+            <span>Periode data yang sedang digunakan</span>
+          </div>
+        </div>
+
+        {/* Bottom Information */}
+        <div className="relative mt-5 flex items-center justify-between rounded-xl bg-muted/40 px-3 py-2.5">
+          <div className="flex items-center gap-2">
+            <div className="flex size-7 items-center justify-center rounded-lg bg-background shadow-sm">
+              <Clock3 className="size-3.5 text-amber-500" />
+            </div>
+
+            <div className="leading-tight">
+              <p className="text-[11px] font-medium text-muted-foreground">
+                Periode Aktif
+              </p>
+
+              <p className="text-xs font-semibold text-foreground">
+                Data Tahun {totalValue}
+              </p>
+            </div>
+          </div>
+
+          <Badge
+            variant="outline"
+            className="border-amber-200 bg-amber-50 font-medium text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400"
+          >
+            <History className="mr-1 size-3" />
+            Aktif
+          </Badge>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
