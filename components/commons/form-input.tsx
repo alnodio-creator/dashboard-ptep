@@ -13,7 +13,7 @@ export function FormInput<T extends FieldValues>({
   name: Path<T>;
   label: string;
   placeholder?: string;
-  type: "email" | "password";
+  type: "email" | "password" | "text";
 }) {
   return (
     <Controller

@@ -66,5 +66,5 @@ export async function LoginAction(
   }
 
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect("/admin");
 }
