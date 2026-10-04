@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-import { AppleIcon, Loader2 } from "lucide-react";
+import { AppleIcon, FilePlusCorner, Loader2 } from "lucide-react";
 import { FormEvent } from "react";
 import { FieldValues, Path, UseFormReturn } from "react-hook-form";
 
@@ -33,7 +33,7 @@ export default function CommonsForm<T extends FieldValues>({
       <DialogHeader>
         <div className="flex flex-col items-center gap-2">
           <div className="flex items-center gap-2">
-            <AppleIcon className="w-6 h-6" />
+            <FilePlusCorner className="w-6 h-6" />
 
             <DialogTitle>{type} Analisis</DialogTitle>
           </div>

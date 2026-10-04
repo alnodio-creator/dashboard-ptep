@@ -5,7 +5,7 @@ export function useDataNilai() {
   const [selectedKota, setKota] = useState<string>(
     "Kantor Pertanahan Kota Administrasi Jakarta Selatan",
   );
-  const [Tahun, setTahun] = useState<number>(2025);
+  const [Tahun, setTahun] = useState<number>(2026);
   const [Nilaitanah, setNilaiTanah] = useState<NilaiTanah[]>([]);
 
   return {

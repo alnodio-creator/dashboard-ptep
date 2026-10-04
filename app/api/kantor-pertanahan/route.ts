@@ -1,18 +1,9 @@
-import { prisma } from "@/lib/prisma";
-import { NextRequest, NextResponse } from "next/server";
+import { prismaPenilaianTanah } from "@/lib/prisma";
+import { NextResponse } from "next/server";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    // const { searchParams } = new URL(request.url);
-    // const nama = searchParams.get("nama");
-
-    // if (!nama) {
-    //   return NextResponse.json({
-    //     pesan: "Nama Kantah tidak ditemukan",
-    //   });
-    // }
-
-    const data = await prisma.$queryRaw<{
+    const data = await prismaPenilaianTanah.$queryRaw<{
       kantorid: string;
       kode: string;
       induk: string;

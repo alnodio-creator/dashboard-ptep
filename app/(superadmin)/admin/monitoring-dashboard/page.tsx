@@ -6,8 +6,10 @@ export const metadata = {
 
 export default function MonitoringDashboard() {
   return (
-    <div className="border-2 rounded-3xl">
-      <DashboardMonitor />
+    <div className="flex min-h-screen w-full justify-center">
+      <div className="w-full max-w-[1600px]">
+        <DashboardMonitor />
+      </div>
     </div>
   );
 }

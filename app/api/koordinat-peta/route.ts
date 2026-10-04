@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prismaPenilaianTanah } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const data = await prisma.$queryRaw<{
+    const data = await prismaPenilaianTanah.$queryRaw<{
       x: number;
       y: number;
       kantorid: string;

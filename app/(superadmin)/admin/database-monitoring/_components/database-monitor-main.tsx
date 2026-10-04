@@ -1,9 +1,7 @@
 "use client";
 
-"use client";
-
-import { use } from "react";
 import DataTable from "@/components/commons/data-table";
+import { formatRupiah } from "@/constants/auth-constants";
 import { Header_Data_Analisis } from "@/constants/data-table";
 import useDataTable from "@/hooks/use-data-table";
 import { createClient } from "@/lib/supabase/client";
@@ -11,15 +9,8 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { toast } from "sonner";
 
-export default function Monitoring({
-  params,
-}: {
-  params: Promise<{ nomorsk: string }>;
-}) {
+export default function MonitoringDataMain() {
   const supabase = createClient();
-  const { nomorsk } = use(params);
-
-  const decodedNomorsk = decodeURIComponent(nomorsk);
 
   const {
     currentPage,
@@ -33,7 +24,6 @@ export default function Monitoring({
     const Database = await supabase
       .from("nilaitanah")
       .select("*", { count: "exact" })
-      .eq("nomorsk", decodedNomorsk)
       .range((currentPage - 1) * currentLimit, currentLimit * currentPage - 1)
       .order("tahun")
       .ilike("nama", `%${currentSearch}%`);

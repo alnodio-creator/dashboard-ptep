@@ -68,8 +68,6 @@ export default function DashboardMonitor() {
     return [...new Set(semuaKota.map((item) => item.nama).filter(Boolean))];
   }, [semuaKota]);
 
-  console.log(DaftarKota);
-
   const Queryfunction = async () => {
     const { data: Nilaitanah, error } = await Supabase.from("nilaitanah")
       .select("*", { count: "exact" })
@@ -101,8 +99,6 @@ export default function DashboardMonitor() {
   if (error) {
     toast.error("Gagal Fetch Data", { description: error.message });
   }
-
-  console.log("cek nilai tanah nih:", Nilaitanahini);
 
   // Ambil Nomorsk Untuk fetch data di MapLibre
   const NomorSk =
@@ -183,7 +179,6 @@ export default function DashboardMonitor() {
     return hasilperhitungan;
   }, [Nilaitanahini, Tahun]);
 
-  console.log(Gunalahan);
   // ==================================Rumus Pertumbuhan Nilai Total===========================================
   // Rumus Pertumbuhan Nilai Total
 
@@ -360,8 +355,6 @@ export default function DashboardMonitor() {
     return hasilperhitungan;
   }, [Nilaitanahini, Tahun]);
 
-  console.log(PertumbuhanDetailGunalahan);
-
   // ========================Query untuk Titik Koordinat MapLibre=========================================
   // Query Koordinat Peta
   const QueryFunctionKoordinat = async () => {
@@ -378,7 +371,6 @@ export default function DashboardMonitor() {
 
       return data;
     } catch (error) {
-      console.error("Error fetch koordinat:", error);
       throw error;
     }
   };
@@ -389,13 +381,10 @@ export default function DashboardMonitor() {
     enabled: Boolean(kantorid),
   });
 
-  console.log("Koordinat Peta:", KoordinatPeta);
-
   // =====================================================================================================
 
   return (
     <main className="min-h-screen bg-linear-to-br from-slate-50 via-white to-sky-50/60 text-foreground dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
-      <HeaderDashboard />
       <div className="mx-auto max-w-7xl px-5 py-7 lg:px-8 lg:py-10">
         <JudulAnalisis nama={selectedKota} />
         <SelectKota1

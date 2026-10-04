@@ -391,7 +391,7 @@ export default function Page() {
 
   return (
     <main className="min-h-screen bg-linear-to-br from-slate-50 via-white to-sky-50/60 text-foreground dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
-      <HeaderDashboard />
+      {/* <HeaderDashboard /> */}
       <div className="mx-auto max-w-7xl px-5 py-7 lg:px-8 lg:py-10">
         <JudulAnalisis nama={selectedKota} />
         <SelectKota1

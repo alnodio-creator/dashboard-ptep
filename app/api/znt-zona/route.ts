@@ -1,9 +1,9 @@
-import { prisma } from "@/lib/prisma";
+import { prismaPenilaianTanah } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
-    const data = await prisma.$queryRaw<
+    const data = await prismaPenilaianTanah.$queryRaw<
       {
         nomorzone: string;
         nomorsk: string;

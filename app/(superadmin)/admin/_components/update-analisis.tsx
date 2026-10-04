@@ -10,7 +10,6 @@ import { createClient } from "@/lib/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Dialog } from "@/components/ui/dialog";
 import {
-  TypeUpdateAnalisisSchema,
   UpdateAnalisisSchema,
 } from "@/validations/auth-validations";
 import z from "zod";
