@@ -1,5 +1,8 @@
 import { Dices, FileChartColumn, FileChartPie, UserStar } from "lucide-react";
 
+export const basePath =
+  process.env.NEXT_PUBLIC_BASE_PATH ?? "/sipenta/tatausaha-dashboard";
+
 export const SIDEBAR_DASHBOARD = [
   {
     title: "Admin Database",
@@ -24,3 +27,16 @@ export const SIDEBAR_DASHBOARD = [
 ];
 
 export const SelectedGunalahan = [{ comersial: {} }];
+
+export const SIDEBAR_MONITORING = [
+  {
+    title: "Monitoring Berkas",
+    path: "/Monitoring/monitoring-berkas",
+    icon: FileChartColumn,
+  },
+  {
+    title: "Rekap Tahapan",
+    path: "/Monitoring/rekap-tahapan",
+    icon: Dices,
+  },
+];

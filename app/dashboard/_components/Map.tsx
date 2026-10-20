@@ -14,18 +14,19 @@ import type { FeatureCollection } from "geojson";
 import { ZntFeature, ZntFeatureCollection } from "@/constants/auth-constants";
 
 import { getPopupContent } from "../types/popup-contents";
+import { basePath } from "@/constants/menu-sidebar";
 
-setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
+setWorkerUrl(`${basePath}/maplibre/maplibre-gl-worker.mjs`);
 
-type KoordinatPeta = {
+export type KoordinatPeta = {
   x: number;
   y: number;
   kantorid: string;
 };
 
-type MapLibreClientProps = {
+export type MapLibreClientProps = {
   nomorSk: string;
-  koordinat?: KoordinatPeta[];
+  koordinat?: KoordinatPeta[] | undefined;
 };
 
 const getColorByKelas = (kelas?: number | string) => {
@@ -83,7 +84,9 @@ export default function MapLibreClient({
     map.on("load", async () => {
       try {
         // Fetch GeoJSON berdasarkan Nomor SK
-        const response = await fetch(`/api/znt-nomorsk?nomorsk=${nomorSk}`);
+        const response = await fetch(
+          `${basePath}/api/znt-nomorsk?nomorsk=${nomorSk}`,
+        );
 
         if (!response.ok) {
           throw new Error("Gagal fetch GeoJSON ZNT");

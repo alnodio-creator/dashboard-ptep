@@ -28,6 +28,7 @@ import { DescriptionCardTahun } from "@/app/dashboard/_components/description-ca
 import { ChartPieDonutActive } from "@/app/dashboard/_components/chartlatian";
 import { ChartBarMultiple } from "@/app/dashboard/_components/barChart";
 import { DataTable } from "@/app/dashboard/_components/table-data";
+import { basePath } from "@/constants/menu-sidebar";
 
 const MapLibreClient = dynamic(
   () => import("@/app/dashboard/_components/Map"),
@@ -361,7 +362,9 @@ export default function DashboardMonitor() {
     if (!kantorid) return [];
 
     try {
-      const response = await fetch(`/api/koordinat-peta?kantorid=${kantorid}`);
+      const response = await fetch(
+        `${basePath}/api/koordinat-peta?kantorid=${kantorid}`,
+      );
 
       if (!response.ok) {
         throw new Error("Gagal fetch koordinat peta");

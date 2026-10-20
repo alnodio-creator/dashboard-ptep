@@ -10,18 +10,28 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+
 import { Presentation } from "lucide-react";
 import { usePathname } from "next/navigation";
-
-import { SIDEBAR_DASHBOARD } from "@/constants/menu-sidebar";
+import { SIDEBAR_DASHBOARD, basePath } from "@/constants/menu-sidebar";
 import { cn } from "@/lib/utils";
 
 export function AppSidebar() {
   const pathname = usePathname();
 
+  // Hilangkan basePath jika pathname menyertakannya.
+  const normalizedPath = pathname.startsWith(basePath)
+    ? pathname.slice(basePath.length) || "/"
+    : pathname;
+
+  console.log({
+    pathname,
+    normalizedPath,
+    basePath,
+  });
+
   return (
     <Sidebar>
-      {/* Header */}
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -43,23 +53,29 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarHeader>
 
-      {/* Content */}
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
             {SIDEBAR_DASHBOARD.map((item) => {
               const isActive =
-                pathname === item.path || pathname.startsWith(`${item.path}/`);
+                normalizedPath === item.path ||
+                normalizedPath.startsWith(`${item.path}/`);
+
+              const fullPath = `${basePath}${item.path}`;
 
               return (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton tooltip={item.title} className="p-0 mb-4">
+                  <SidebarMenuButton
+                    tooltip={item.title}
+                    isActive={isActive}
+                    className="mb-4 h-auto p-0"
+                  >
                     <a
-                      href={item.path}
+                      href={fullPath}
                       className={cn(
-                        "flex h-auto w-full items-center gap-2 rounded-md px-4 py-10 transition-colors",
+                        "flex h-auto w-full items-center gap-1 rounded-md px-4 py-2 transition-colors",
                         isActive
-                          ? "bg-teal-500 text-white hover:bg-teal-500 hover:text-white"
+                          ? "bg-teal-500! text-white hover:bg-teal-500 hover:text-white"
                           : "hover:bg-muted",
                       )}
                     >
@@ -74,7 +90,6 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      {/* Footer */}
       <SidebarFooter />
     </Sidebar>
   );

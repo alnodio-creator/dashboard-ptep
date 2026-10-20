@@ -13,9 +13,10 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import type { FeatureCollection } from "geojson";
 import { ZntFeature, ZntFeatureCollection } from "@/constants/auth-constants";
 import { getPopupContent } from "../types/popup-content";
+import { basePath } from "@/constants/menu-sidebar";
 
 // Set worker URL dari public/maplibre sesuai docs resmi
-setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
+setWorkerUrl(`${basePath}/maplibre/maplibre-gl-worker.mjs`);
 
 const getColorByKelas = (kelas?: number | string) => {
   switch (Number(kelas)) {
@@ -63,7 +64,7 @@ export default function MapLibreClient() {
       mapInstanceRef.current = map;
 
       try {
-        const response = await fetch("api/znt-zona");
+        const response = await fetch(`${basePath}/api/znt-zona`);
         const data = await response.json();
         console.log(data);
 

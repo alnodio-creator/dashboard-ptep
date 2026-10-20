@@ -13,6 +13,7 @@ import { formatRupiah } from "@/constants/auth-constants";
 import DataTableMonitoring from "./table-data";
 import BarCharAnalisis from "./BarChart-analisis";
 import { ArrowDown, ArrowUp } from "lucide-react";
+import { basePath } from "@/constants/menu-sidebar";
 
 export default function MonitoringData() {
   const { selectedKota, setKota, Tahun, setTahun } = useDataNilai();
@@ -25,7 +26,7 @@ export default function MonitoringData() {
   } = useDataTable();
 
   const getDataKantah = async () => {
-    const response = await fetch("/api/kantor-pertanahan");
+    const response = await fetch(`${basePath}/api/kantor-pertanahan`);
     if (!response.ok) {
       toast.error("Gagal Fetch Data", {
         description: response.ok,

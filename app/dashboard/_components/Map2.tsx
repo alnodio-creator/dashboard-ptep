@@ -12,9 +12,10 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import type { FeatureCollection } from "geojson";
 import { ZntFeature, ZntFeatureCollection } from "@/constants/auth-constants";
 import { getPopupContent } from "../types/popup-contents";
+import { basePath } from "@/constants/menu-sidebar";
 
 // Set worker URL dari public/maplibre sesuai docs resmi
-setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
+setWorkerUrl(`${basePath}/maplibre/maplibre-gl-worker.mjs`);
 
 const getColorByKelas = (kelas?: number | string) => {
   switch (Number(kelas)) {

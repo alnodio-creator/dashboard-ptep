@@ -1,7 +1,25 @@
 import { prismaZonaNilaiTanah } from "@/lib/prisma";
+import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  // 2. Tolak pengguna yang belum login atau sesinya tidak valid
+  if (error || !user) {
+    return NextResponse.json(
+      {
+        message: "Unauthorized. Silakan login terlebih dahulu.",
+      },
+      { status: 401 },
+    );
+  }
+
   const { searchParams } = new URL(request.url);
 
   const nama = searchParams.get("nama") ?? "";
