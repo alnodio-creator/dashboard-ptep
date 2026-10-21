@@ -49,6 +49,7 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
+import { basePath } from "@/constants/menu-sidebar";
 
 // ======================================================
 // TYPES
@@ -1030,7 +1031,7 @@ export default function RekapTahapanPage() {
   } = useQuery<ApiResponse>({
     queryKey: ["Data_Kantah"],
     queryFn: async () => {
-      const result = await fetch("/api/berkas-sipenta");
+      const result = await fetch(`${basePath}/api/berkas-sipenta`);
 
       if (!result.ok) {
         throw new Error("Gagal mengambil data berkas SIPENTA");

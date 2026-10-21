@@ -63,7 +63,7 @@ export default function MapLibreClient() {
       mapInstanceRef.current = map;
 
       try {
-        const response = await fetch("api/znt-zona");
+        const response = await fetch(`${basePath}/api/znt-zona`);
         const data = await response.json();
         console.log(data);
 

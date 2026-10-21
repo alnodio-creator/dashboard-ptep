@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { createDatabaseFunction } from "./actions";
 import z from "zod";
 import CommonsForm from "@/components/commons/form-database";
+import { basePath } from "@/constants/menu-sidebar";
 
 export default function CreateDatabaseAnalisis({
   refetch,
@@ -18,7 +19,7 @@ export default function CreateDatabaseAnalisis({
   refetch: () => void;
 }) {
   const getDataKantah = async () => {
-    const response = await fetch("api/kantor-pertanahan");
+    const response = await fetch(`${basePath}/api/kantor-pertanahan`);
     if (!response.ok) {
       toast.error("Gagal Fetch Data", {
         description: response.ok,

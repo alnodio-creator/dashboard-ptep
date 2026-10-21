@@ -1,4 +1,3 @@
-import { use } from "react";
 import Monitoring from "../_components/database-monitor";
 
 export const metadata = {
@@ -6,18 +5,16 @@ export const metadata = {
   description: "Perubahan Database",
 };
 
-export default function DatabaseMonitoring({
-  params,
+export default async function DatabaseMonitoring({
+  searchParams,
 }: {
-  params: Promise<{ nomorsk: string }>;
+  searchParams: Promise<{ nomorsk?: string }>;
 }) {
-  const { nomorsk } = use(params);
-
-  const decodedNomorsk = decodeURIComponent(nomorsk);
+  const { nomorsk = "" } = await searchParams;
 
   return (
     <div className="flex-1 w-full h-full p-4 md:p-6 overflow-y-auto">
-      <Monitoring nomorsk={decodedNomorsk} />
+      <Monitoring nomorsk={nomorsk} />
     </div>
   );
 }

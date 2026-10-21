@@ -1,6 +1,5 @@
 "use client";
 
-import DataTable from "@/components/commons/data-table";
 import { Header_Data_Monitoring } from "@/constants/data-table";
 import { useDataNilai } from "@/hooks/hook-datanilai";
 import useDataTable from "@/hooks/use-data-table";
@@ -51,7 +50,7 @@ export default function MonitoringData() {
     });
 
     const response = await fetch(
-      `/api/monitoring-anomali-data?${params.toString()}`,
+      `${basePath}/api/monitoring-anomali-data?${params.toString()}`,
     );
 
     if (!response.ok) {
