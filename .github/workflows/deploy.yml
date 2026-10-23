@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-    ci:
+  ci:
     name: Build and Test
     runs-on: ubuntu-latest
 
@@ -37,7 +37,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
 
-    deploy:
+  deploy:
     name: Deploy to Ubuntu Server
     needs: ci
     runs-on: self-hosted
