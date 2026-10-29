@@ -118,7 +118,7 @@ export function MonitoringActivityTable({
                     {item.no_berkas || "-"}
                   </TableCell>
 
-                  <TableCell>{item.nama || "-"}</TableCell>
+                  <TableCell>{item.namakantor || "-"}</TableCell>
 
                   <TableCell>{item.Kabupaten || "-"}</TableCell>
 

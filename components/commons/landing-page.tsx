@@ -30,7 +30,7 @@ const applications = [
   {
     number: "01",
     image: `${basePath}/images/hero-pertanahan-1.jpg`,
-    title: "Aplikasi Pertama",
+    title: "Monitoring Kegiatan",
     description:
       "Akses sistem dan layanan digital untuk mendukung kegiatan pertanahan.",
     href: `${basePath}/Monitoring`,
@@ -40,7 +40,7 @@ const applications = [
   {
     number: "02",
     image: `${basePath}/images/hero-pertanahan-2.jpg`,
-    title: "Aplikasi Kedua",
+    title: "Analisis Ekonomi Pertanahan",
     description:
       "Pantau informasi, data, dan dashboard untuk mendukung pengambilan keputusan.",
     href: `${basePath}/dashboard`,
@@ -50,7 +50,7 @@ const applications = [
   {
     number: "03",
     image: `${basePath}/images/hero-pertanahan-3.jpg`,
-    title: "Aplikasi Ketiga",
+    title: "Analisis Tematik",
     description:
       "Jelajahi layanan dan platform digital dalam satu portal terintegrasi.",
     href: "https://dashboard-potensi.vercel.app/Potensi-smartCity",

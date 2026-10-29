@@ -37,6 +37,7 @@ import { formatRupiah } from "@/constants/auth-constants";
 import { formatNumber } from "@/data/land-values";
 import { MonitoringActivityTable } from "./MonitoringActivityTable";
 import { basePath } from "@/constants/menu-sidebar";
+import { ActivitySectionCollapsible } from "./monitoring-collapsible";
 
 // ======================================================
 // TYPES
@@ -45,7 +46,9 @@ import { basePath } from "@/constants/menu-sidebar";
 type Kegiatan = {
   no_berkas: string | null;
   kode_kegiatan: string | null;
-  nama: string | null;
+  kanwilid: string | null;
+  kantorid: string | null;
+  namakantor: string | null;
   Kabupaten: string | null;
   nama_kegiatan: string | null;
   nama_tahapan: string | null;
@@ -96,7 +99,7 @@ function normalize(value: string | null | undefined): string {
 // ACTIVITY SECTION
 // ======================================================
 
-function ActivitySection({
+export function ActivitySection({
   title,
   description,
   data,
@@ -296,7 +299,9 @@ export default function MonitoringPage() {
   const wilayahOptions = useMemo(
     () =>
       Array.from(
-        new Set(data.map((item) => item.nama).filter((v): v is string => !!v)),
+        new Set(
+          data.map((item) => item.namakantor).filter((v): v is string => !!v),
+        ),
       ).sort((a, b) => a.localeCompare(b, "id")),
     [data],
   );
@@ -347,7 +352,7 @@ export default function MonitoringPage() {
         !keyword ||
         [
           item.no_berkas,
-          item.nama,
+          item.namakantor,
           item.Kabupaten,
           item.nama_kegiatan,
           item.nama_tahapan,
@@ -357,7 +362,7 @@ export default function MonitoringPage() {
         ].some((value) => normalize(value).includes(keyword));
 
       const matchesWilayah =
-        filter.wilayah === "Semua" || item.nama === filter.wilayah;
+        filter.wilayah === "Semua" || item.namakantor === filter.wilayah;
 
       const matchesTahun =
         filter.tahun === "Semua" ||
@@ -608,15 +613,16 @@ export default function MonitoringPage() {
         <Card>
           <CardContent className="flex min-h-64 flex-col items-center justify-center gap-3">
             <div className="size-9 animate-spin rounded-full border-4 border-muted border-t-blue-600" />
+
             <p className="text-sm text-muted-foreground">
               Memuat data SIPENTA...
             </p>
           </CardContent>
         </Card>
       ) : (
-        <>
+        <div className="space-y-4">
           {/* PEMBUATAN */}
-          <ActivitySection
+          <ActivitySectionCollapsible
             title="Pembuatan Zona Nilai Tanah"
             description="Analisis khusus seluruh berkas kegiatan pembuatan ZNT."
             data={pembuatan}
@@ -624,13 +630,13 @@ export default function MonitoringPage() {
           />
 
           {/* PEMBARUAN */}
-          <ActivitySection
+          <ActivitySectionCollapsible
             title="Pembaruan Zona Nilai Tanah"
             description="Analisis khusus seluruh berkas kegiatan pembaruan ZNT."
             data={pembaruan}
             type="02"
           />
-        </>
+        </div>
       )}
 
       {/* FOOTER */}

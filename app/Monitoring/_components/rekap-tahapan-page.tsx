@@ -32,6 +32,8 @@ import { FilterSelect } from "./filter-select";
 import { SummaryCard } from "./summary-card";
 import { formatRupiah } from "@/constants/auth-constants";
 import { basePath } from "@/constants/menu-sidebar";
+import Link from "next/link";
+import { RekapTahapanCollapsible } from "./rekap-tahapan-collapsible";
 
 // ======================================================
 // TYPES
@@ -40,7 +42,9 @@ import { basePath } from "@/constants/menu-sidebar";
 type Kegiatan = {
   no_berkas: string | null;
   kode_kegiatan: string | null;
-  nama: string | null;
+  kanwilid: string | null;
+  kantorid: string | null;
+  namakantor: string | null;
   Kabupaten: string | null;
   nama_kegiatan: string | null;
   nama_tahapan: string | null;
@@ -178,7 +182,7 @@ function formatPersen(value: number): string {
   })}%`;
 }
 
-function RekapTahapanProvinsi({
+export function RekapTahapanProvinsi({
   data,
   title,
   description,
@@ -190,24 +194,38 @@ function RekapTahapanProvinsi({
   const rekap = useMemo(() => {
     const provinsiMap = new Map<
       string,
-      Map<string, { tahapan: number; tahun: number | null; noBerkas: string }>
+      {
+        kanwilid: string;
+        kode_kegiatan: string;
+        kabupatenMap: Map<
+          string,
+          { tahapan: number; tahun: number | null; noBerkas: string }
+        >;
+      }
     >();
 
     data.forEach((item) => {
-      const provinsi = getProvinsi(item.nama);
+      const provinsi = getProvinsi(item.namakantor);
+      const kanwilid = String(item.kanwilid ?? "");
+      const kode_kegiatan = String(item.kode_kegiatan ?? "");
+
       const kabupaten = (item.Kabupaten ?? "").trim();
       if (!kabupaten) return;
 
-      if (!provinsiMap.has(provinsi)) provinsiMap.set(provinsi, new Map());
-      const kabupatenMap = provinsiMap.get(provinsi)!;
+      if (!provinsiMap.has(provinsi)) {
+        provinsiMap.set(provinsi, {
+          kanwilid,
+          kode_kegiatan,
+          kabupatenMap: new Map(),
+        });
+      }
 
-      // Satu kabupaten dihitung satu kali dalam kombinasi provinsi dan kegiatan.
+      const kabupatenMap = provinsiMap.get(provinsi)!.kabupatenMap;
+
       const keyKabupaten = normalizeTahapan(kabupaten);
       const tahapIndex = getTahapanIndex(item.nama_tahapan);
       const existing = kabupatenMap.get(keyKabupaten);
 
-      // Jika ada beberapa berkas untuk kabupaten yang sama, gunakan tahapan
-      // paling maju agar satu kabupaten tidak dihitung berulang kali.
       if (!existing || tahapIndex > existing.tahapan) {
         kabupatenMap.set(keyKabupaten, {
           tahapan: tahapIndex,
@@ -218,23 +236,24 @@ function RekapTahapanProvinsi({
     });
 
     return Array.from(provinsiMap.entries())
-      .map(([provinsi, kabupatenMap]) => {
+      .map(([provinsi, { kanwilid, kode_kegiatan, kabupatenMap }]) => {
         const totalKabupaten = kabupatenMap.size;
+
         const jumlahTahapan = TAHAPAN_REKAP.map(
           (_, index) =>
             Array.from(kabupatenMap.values()).filter(
               (item) => item.tahapan === index,
             ).length,
         );
+
         const persenTahapan = jumlahTahapan.map((jumlah) =>
           totalKabupaten > 0 ? (jumlah / totalKabupaten) * 100 : 0,
         );
+
         const jumlahTerpetakan = Array.from(kabupatenMap.values()).filter(
           (item) => item.tahapan >= 0,
         ).length;
 
-        // Agregat = rata-rata posisi tahapan tiap kabupaten (Persiapan 0%,
-        // Selesai 100%). Berbeda dengan rata-rata distribusi tiap kolom.
         const agregat =
           totalKabupaten > 0
             ? (Array.from(kabupatenMap.values()).reduce(
@@ -250,6 +269,8 @@ function RekapTahapanProvinsi({
             : 0;
 
         return {
+          kanwilid,
+          kode_kegiatan,
           provinsi,
           totalKabupaten,
           jumlahTahapan,
@@ -373,8 +394,13 @@ function RekapTahapanProvinsi({
               ) : (
                 rekap.map((item) => (
                   <TableRow key={item.provinsi} className="hover:bg-muted/30">
-                    <TableCell className="sticky left-0 z-10 bg-background font-semibold">
-                      {item.provinsi}
+                    <TableCell className="sticky left-0 z-10 bg-background font-semibold text-blue-800 underline">
+                      <Link
+                        href={`/Monitoring/rekap-tahapan/${item.kanwilid}/${item.kode_kegiatan}`}
+                        className="hover:text-primary hover:underline"
+                      >
+                        {item.provinsi}
+                      </Link>
                     </TableCell>
                     <TableCell className="text-center font-semibold tabular-nums">
                       {item.totalKabupaten.toLocaleString("id-ID")}
@@ -434,7 +460,7 @@ function RekapTahapanProvinsi({
 // MAIN PAGE
 // ======================================================
 
-export default function RekapTahapanPage() {
+export default function RekapTahapanPageBelajar() {
   const [search, setSearch] = useState("");
 
   const [filter, setFilter] = useState<FilterState>({
@@ -474,7 +500,9 @@ export default function RekapTahapanPage() {
   const wilayahOptions = useMemo(
     () =>
       Array.from(
-        new Set(data.map((item) => item.nama).filter((v): v is string => !!v)),
+        new Set(
+          data.map((item) => item.namakantor).filter((v): v is string => !!v),
+        ),
       ).sort((a, b) => a.localeCompare(b, "id")),
     [data],
   );
@@ -525,7 +553,7 @@ export default function RekapTahapanPage() {
         !keyword ||
         [
           item.no_berkas,
-          item.nama,
+          item.namakantor,
           item.Kabupaten,
           item.nama_kegiatan,
           item.nama_tahapan,
@@ -535,7 +563,7 @@ export default function RekapTahapanPage() {
         ].some((value) => normalize(value).includes(keyword));
 
       const matchesWilayah =
-        filter.wilayah === "Semua" || item.nama === filter.wilayah;
+        filter.wilayah === "Semua" || item.namakantor === filter.wilayah;
 
       const matchesTahun =
         filter.tahun === "Semua" ||
@@ -569,7 +597,7 @@ export default function RekapTahapanPage() {
         !keyword ||
         [
           item.no_berkas,
-          item.nama,
+          item.namakantor,
           item.Kabupaten,
           item.nama_kegiatan,
           item.nama_tahapan,
@@ -579,7 +607,7 @@ export default function RekapTahapanPage() {
         ].some((value) => normalize(value).includes(keyword));
 
       const matchesWilayah =
-        filter.wilayah === "Semua" || item.nama === filter.wilayah;
+        filter.wilayah === "Semua" || item.namakantor === filter.wilayah;
       const matchesTahun =
         filter.tahun === "Semua" ||
         String(item.anggaran_tahun ?? "") === filter.tahun;
@@ -823,19 +851,21 @@ export default function RekapTahapanPage() {
         </CardContent>
       </Card>
 
+      {/* REKAP TAHAPAN COLLAPSIBLE */}
       {!isLoading && !isError && (
-        <>
-          <RekapTahapanProvinsi
-            title="Rekap Tahapan Pembuatan ZNT"
+        <div className="space-y-4">
+          <RekapTahapanCollapsible
+            title="Rekap Timeline Tahapan Pembuatan ZNT"
             description="Persentase progres pembuatan Zona Nilai Tanah per provinsi."
             data={rekapPembuatan}
           />
-          <RekapTahapanProvinsi
-            title="Rekap Tahapan Pembaruan ZNT"
+
+          <RekapTahapanCollapsible
+            title="Rekap Timeline Pembaruan ZNT"
             description="Persentase progres pembaruan Zona Nilai Tanah per provinsi."
             data={rekapPembaruan}
           />
-        </>
+        </div>
       )}
 
       {/* FOOTER */}

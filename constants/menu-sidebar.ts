@@ -40,3 +40,16 @@ export const SIDEBAR_MONITORING = [
     icon: Dices,
   },
 ];
+
+export const SIDEBAR_MONITORING_BELAJAR = [
+  {
+    title: "Monitoring Berkas",
+    path: "/Monitoring-belajar/monitoring-berkas",
+    icon: FileChartColumn,
+  },
+  {
+    title: "Rekap Tahapan",
+    path: "/Monitoring-belajar/rekap-tahapan",
+    icon: Dices,
+  },
+];

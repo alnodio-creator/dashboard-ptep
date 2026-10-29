@@ -1,7 +1,7 @@
 export type Kegiatan = {
   no_berkas: string | null;
   kode_kegiatan: string | null;
-  nama: string | null;
+  namakantor: string | null;
   Kabupaten: string | null;
   nama_kegiatan: string | null;
   nama_tahapan: string | null;

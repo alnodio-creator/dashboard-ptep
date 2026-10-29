@@ -1,7 +1,6 @@
 "use client";
 
 import DataTable from "@/components/commons/data-table";
-import { formatRupiah } from "@/constants/auth-constants";
 import { Header_Data_Analisis } from "@/constants/data-table";
 import useDataTable from "@/hooks/use-data-table";
 import { createClient } from "@/lib/supabase/client";

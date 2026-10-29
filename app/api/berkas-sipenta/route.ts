@@ -7,7 +7,9 @@ export async function GET() {
       {
         no_berkas: string | null;
         kode_kegiatan: string | null;
-        nama: string | null;
+        namakantor: string | null;
+        kanwilid: string | null;
+        kantorid: string | null;
         Kabupaten: string | null;
         nama_kegiatan: string | null;
         nama_tahapan: string | null;
@@ -22,10 +24,12 @@ export async function GET() {
         penanggung_jawab: string | null;
       }[]
     >`
-      SELECT
+SELECT
         b.no_berkas,
         k.kode_kegiatan,
-        dk.nama,
+        zmwk.namakantor,
+        zmwk.kantorid as kanwilid,
+        zmk.kantorid as kantorid,
         kl.nama AS "Kabupaten",
         k.nama_kegiatan,
         tk.nama_tahapan,
@@ -49,9 +53,9 @@ export async function GET() {
         ON b.tahapan_kegiatan_id = tk.tahapan_kegiatan_id
       LEFT JOIN dashboard.znt_master_kantor zmk
         ON zmk.kode = kl.kantor_id
-      LEFT JOIN dashboard.dashboard_kanwil dk
-        ON dk.kanwil = zmk.induk
-      ORDER BY dk.nama ASC
+      LEFT JOIN dashboard.znt_master_wilayah_kantor zmwk
+        ON zmwk.kantorid = zmk.induk
+      ORDER BY zmwk.namakantor asc
     `;
 
     return NextResponse.json({

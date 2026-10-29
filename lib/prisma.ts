@@ -4,6 +4,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 
 import { PrismaClient as PenilaianTanahClient } from "../generated/penilaitanah/client";
 import { PrismaClient as ZonaNilaiTanahClient } from "../generated/zonanilaitanah/client";
+import { PrismaClient as BelajarSipentaClient } from "../generated/belajarsipenta/client";
 
 // ===============================
 // DATABASE: penilaitanah
@@ -29,4 +30,16 @@ const prismaZonaNilaiTanah = new ZonaNilaiTanahClient({
   adapter: zonaNilaiTanahAdapter,
 });
 
-export { prismaPenilaianTanah, prismaZonaNilaiTanah };
+// ===============================
+// DATABASE: belajarsipenta
+// ===============================
+
+const belajarSipentaAdapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL_BELAJARSIPENTA!,
+});
+
+const prismaBelajarSipenta = new BelajarSipentaClient({
+  adapter: belajarSipentaAdapter,
+});
+
+export { prismaPenilaianTanah, prismaZonaNilaiTanah, prismaBelajarSipenta };

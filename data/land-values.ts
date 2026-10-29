@@ -95,6 +95,8 @@ export const formatCurrency = (value: number) =>
     currency: "AUD",
     maximumFractionDigits: 0,
   }).format(value);
+
+  
 export const formatNumber = (value: number) =>
   new Intl.NumberFormat("en-AU").format(value);
 export const formatDate = (year: string) => `02 Jan ${year}`;
