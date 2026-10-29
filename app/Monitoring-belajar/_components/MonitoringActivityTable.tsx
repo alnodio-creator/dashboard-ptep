@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Kegiatan } from "../types/type";
+
 import { Card } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, FileSpreadsheet } from "lucide-react";
 import {
@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatRupiah } from "@/constants/auth-constants";
 import { formatNumber } from "@/data/land-values";
 import { toNumber } from "./chart-monitoring";
+import { Kegiatan } from "@/app/Monitoring/types/type";
 
 const PAGE_SIZE = 10;
 
@@ -73,8 +74,8 @@ export function MonitoringActivityTable({
         </Badge>
       </div>
 
-      <div className="max-h-[580px] overflow-auto">
-        <Table className="min-w-[1500px]">
+      <div className="max-h-145 overflow-auto">
+        <Table className="min-w-375">
           <TableHeader className="sticky top-0 z-10 bg-muted">
             <TableRow>
               <TableHead className="px-4">No.</TableHead>
@@ -122,7 +123,7 @@ export function MonitoringActivityTable({
 
                   <TableCell>{item.Kabupaten || "-"}</TableCell>
 
-                  <TableCell className="max-w-[260px] whitespace-normal">
+                  <TableCell className="max-w-65 whitespace-normal">
                     {item.nama_kegiatan || "-"}
                   </TableCell>
 

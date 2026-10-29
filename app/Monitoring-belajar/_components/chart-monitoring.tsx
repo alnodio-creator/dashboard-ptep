@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Kegiatan } from "../types/type";
+
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Bar,
@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { formatRupiah } from "@/constants/auth-constants";
 import { formatNumber } from "@/data/land-values";
+import { Kegiatan } from "@/app/Monitoring/types/type";
 
 export function toNumber(value: string | number | null | undefined): number {
   if (value === null || value === undefined || value === "") return 0;
