@@ -81,10 +81,10 @@ export function MonitoringActivityTable({
               <TableHead>No. Berkas</TableHead>
               <TableHead>Wilayah</TableHead>
               <TableHead>Kabupaten/Kota</TableHead>
-              <TableHead>Kegiatan</TableHead>
+              {/* <TableHead>Kegiatan</TableHead> */}
               <TableHead>Tahapan</TableHead>
               <TableHead>Tahun</TableHead>
-              <TableHead>Sumber</TableHead>
+              {/* <TableHead>Sumber</TableHead> */}
               <TableHead className="text-right">Anggaran</TableHead>
               <TableHead className="text-right">Target Luasan</TableHead>
               <TableHead>Skala</TableHead>
@@ -122,9 +122,9 @@ export function MonitoringActivityTable({
 
                   <TableCell>{item.Kabupaten || "-"}</TableCell>
 
-                  <TableCell className="max-w-[260px] whitespace-normal">
+                  {/* <TableCell className="max-w-[260px] whitespace-normal">
                     {item.nama_kegiatan || "-"}
-                  </TableCell>
+                  </TableCell> */}
 
                   <TableCell>
                     <Badge variant="outline">
@@ -134,14 +134,14 @@ export function MonitoringActivityTable({
 
                   <TableCell>{item.anggaran_tahun ?? "-"}</TableCell>
 
-                  <TableCell>
+                  {/* <TableCell>
                     <Badge
                       variant="outline"
                       className={sumberClass(item.nama_anggaran)}
                     >
                       {item.nama_anggaran || "Belum Diisi"}
                     </Badge>
-                  </TableCell>
+                  </TableCell> */}
 
                   <TableCell className="text-right font-semibold tabular-nums">
                     {formatRupiah(toNumber(item.anggaran))}

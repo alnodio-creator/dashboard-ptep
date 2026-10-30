@@ -41,7 +41,7 @@ export async function GET() {
         ON b.no_berkas = vcp.no_berkas
 
       WHERE
-        k.tgl_mulai > '2026-09-07'
+        k.tgl_mulai > '2026-09-06'
         AND k.tgl_mulai < '2026-09-10'
         AND b.no_berkas <> '01/2026/0071'
 

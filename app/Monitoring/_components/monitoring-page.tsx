@@ -8,8 +8,6 @@ import {
   Banknote,
   CalendarDays,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   FileSpreadsheet,
   Filter,
   MapPin,
@@ -21,14 +19,6 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 import { SummaryCard } from "./summary-card";
 import { FilterSelect } from "./filter-select";
@@ -38,6 +28,7 @@ import { formatNumber } from "@/data/land-values";
 import { MonitoringActivityTable } from "./MonitoringActivityTable";
 import { basePath } from "@/constants/menu-sidebar";
 import { ActivitySectionCollapsible } from "./monitoring-collapsible";
+import { MonitoringActivityTable2 } from "./hih";
 
 // ======================================================
 // TYPES
@@ -250,7 +241,7 @@ export function ActivitySection({
         title={`Grafik ${title} berdasarkan Sumber Anggaran`}
       />
 
-      <MonitoringActivityTable data={data} title={`Detail ${title}`} />
+      <MonitoringActivityTable2 data={data} title={`Detail ${title}`} />
     </section>
   );
 }
@@ -573,7 +564,7 @@ export default function MonitoringPage() {
               }
             />
 
-            <FilterSelect
+            {/* <FilterSelect
               label="Tahapan Kegiatan"
               value={filter.tahapan}
               placeholder="Pilih tahapan"
@@ -581,7 +572,7 @@ export default function MonitoringPage() {
               onChange={(value) =>
                 setFilter((previous) => ({ ...previous, tahapan: value }))
               }
-            />
+            /> */}
           </div>
 
           <div className="flex flex-col gap-3 rounded-xl border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">

@@ -46,16 +46,16 @@ SELECT
       LEFT JOIN tatausaha.kegiatan_kontrak kk
         ON b.kontrak_id = kk.kontrak_id
       LEFT JOIN tatausaha.kegiatan k
-        ON b.kontrak_id = k.kegiatan_id
+        ON kk.kegiatan_id  = k.kegiatan_id
       LEFT JOIN tatausaha.kegiatan_lokasi kl
-        ON b.kontrak_id = kl.kegiatan_id
+        ON k.kegiatan_id  = kl.kegiatan_id
       LEFT JOIN tatausaha.tahapan_kegiatan tk
         ON b.tahapan_kegiatan_id = tk.tahapan_kegiatan_id
       LEFT JOIN dashboard.znt_master_kantor zmk
-        ON zmk.kode = kl.kantor_id
+        ON zmk.kode = kl.wilayah_id 
       LEFT JOIN dashboard.znt_master_wilayah_kantor zmwk
         ON zmwk.kantorid = zmk.induk
-      ORDER BY zmwk.namakantor asc
+      ORDER BY b.created_at desc, zmwk.namakantor asc
     `;
 
     return NextResponse.json({

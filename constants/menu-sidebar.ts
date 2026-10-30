@@ -1,4 +1,10 @@
-import { Dices, FileChartColumn, FileChartPie, UserStar } from "lucide-react";
+import {
+  Dices,
+  ClipboardList,
+  FileChartColumn,
+  FileChartPie,
+  UserStar,
+} from "lucide-react";
 
 export const basePath =
   process.env.NEXT_PUBLIC_BASE_PATH ?? "/sipenta/tatausaha-dashboard";
@@ -40,7 +46,12 @@ export const SIDEBAR_MONITORING = [
     icon: Dices,
   },
   {
-    title: "Progres ILASPP 2026",
+    title: "Progress Capaian ILASPP 2026",
+    path: "/Monitoring/monitoring-ilaspp",
+    icon: ClipboardList,
+  },
+  {
+    title: "Progress Survey Titik Sample ILASPP 2026",
     path: "/Monitoring/Progres-ilaspp",
     icon: FileChartPie,
   },
