@@ -45,11 +45,12 @@ type TimelineResponse = {
 
 type StageKey =
   | "persiapan"
-  | "zonaAwal"
-  | "survei"
+  | "zona-awal"
+  | "survei-batas"
   | "sampel"
   | "analisis"
-  | "peta"
+  | "penyajian"
+  | "pelaporan"
   | "selesai";
 
 type StageDefinition = {
@@ -94,43 +95,57 @@ const STAGES: StageDefinition[] = [
     match: (name) => /persiapan/i.test(name),
   },
   {
-    key: "zonaAwal",
+    key: "zona-awal",
     label: "Pembuatan Zona Awal",
     weight: 18,
-    match: (name) => /zona awal/i.test(name),
+    match: (name) => /pembuatan zona awal|zona awal/i.test(name),
   },
   {
-    key: "survei",
-    label: "Survei Batas",
+    key: "survei-batas",
+    label: "Survei Batas Zona Awal Nilai Tanah",
     weight: 18,
-    match: (name) => /survei batas/i.test(name),
+    match: (name) =>
+      /survei batas zona awal nilai tanah|survei batas zona awal|survei batas zona nilai tanah yang akan diperbarui|survei batas/i.test(
+        name,
+      ),
   },
   {
     key: "sampel",
-    label: "Pengumpulan Sampel",
+    label: "Pengumpulan Data Sampel Nilai Tanah",
     weight: 18,
-    match: (name) => /sampel|sample/i.test(name),
+    match: (name) =>
+      /pengumpulan data sampel nilai tanah|pengumpulan data sample nilai tanah|pengumpulan data sampel|pengumpulan data sample|sampel|sample/i.test(
+        name,
+      ),
   },
   {
     key: "analisis",
-    label: "Analisis dan Pengolahan",
+    label: "Analisis dan Pengolahan Data",
     weight: 26,
-    match: (name) => /analisis|pengolahan|delineasi/i.test(name),
+    match: (name) =>
+      /analisis dan pengolahan data|analisis pengolahan data|analisis dan pengolahan|analisis|pengolahan|delineasi/i.test(
+        name,
+      ),
   },
   {
-    key: "peta",
+    key: "penyajian",
     label: "Penyajian Peta",
     weight: 5,
     match: (name) => /penyajian peta/i.test(name),
   },
   {
+    key: "pelaporan",
+    label: "Pelaporan",
+    weight: 5,
+    match: (name) => /^pelaporan$/i.test(name.trim()),
+  },
+  {
     key: "selesai",
     label: "Selesai",
-    weight: 5,
+    weight: 0,
     match: (name) => /^selesai$/i.test(name.trim()),
   },
 ];
-
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // ======================================================

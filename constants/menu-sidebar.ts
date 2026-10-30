@@ -39,6 +39,11 @@ export const SIDEBAR_MONITORING = [
     path: "/Monitoring/rekap-tahapan",
     icon: Dices,
   },
+  {
+    title: "Progres ILASPP 2026",
+    path: "/Monitoring/Progres-ilaspp",
+    icon: FileChartPie,
+  },
 ];
 
 export const SIDEBAR_MONITORING_BELAJAR = [

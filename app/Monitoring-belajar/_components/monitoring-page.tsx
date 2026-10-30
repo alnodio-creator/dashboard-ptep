@@ -8,8 +8,6 @@ import {
   Banknote,
   CalendarDays,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   FileSpreadsheet,
   Filter,
   MapPin,
@@ -21,14 +19,6 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 import { SummaryCard } from "./summary-card";
 import { FilterSelect } from "./filter-select";
