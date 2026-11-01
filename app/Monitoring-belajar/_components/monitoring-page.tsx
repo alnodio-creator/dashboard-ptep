@@ -413,12 +413,12 @@ export default function MonitoringPage() {
 
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-              Monitoring Kegiatan SIPENTA
+              Monitroing Progres Kegiatan Penilaian Tanah
             </h1>
 
             <p className="mt-1 text-sm text-muted-foreground">
-              Monitoring pembuatan dan pembaruan Zona Nilai Tanah, anggaran,
-              tahapan, dan kontrak kegiatan.
+              Dashboard progres kegiatan Pembuatan dan Pembaruan Peta Nilai
+              Tanah
             </p>
           </div>
         </div>
@@ -631,7 +631,7 @@ export default function MonitoringPage() {
 
       {/* FOOTER */}
       <div className="flex flex-col gap-2 border-t pt-5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-        <p>Monitoring Kegiatan SIPENTA</p>
+        <p>Monitroing Progres Kegiatan Penilaian Tanah</p>
         <p>{response?.total ?? data.length} data tersedia dari API</p>
       </div>
     </main>

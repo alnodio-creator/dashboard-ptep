@@ -1007,7 +1007,7 @@ export default function ProgressILASPPPage() {
 
                       <TableHead className="min-w-[170px]">Kabupaten</TableHead>
 
-                      <TableHead className="min-w-[200px]">Kegiatan</TableHead>
+                      {/* <TableHead className="min-w-[200px]">Kegiatan</TableHead> */}
 
                       <TableHead className="min-w-[170px]">Tahapan</TableHead>
 
@@ -1088,11 +1088,11 @@ export default function ProgressILASPPPage() {
                               {item.Kabupaten ?? "-"}
                             </TableCell>
 
-                            <TableCell>
+                            {/* <TableCell>
                               <p className="max-w-[220px] whitespace-normal text-sm font-medium">
                                 {item.nama_kegiatan ?? "-"}
                               </p>
-                            </TableCell>
+                            </TableCell> */}
 
                             <TableCell>
                               <Badge variant="outline">

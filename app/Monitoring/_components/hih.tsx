@@ -295,7 +295,7 @@ export function MonitoringActivityTable2({
 
               <TableHead>Skala</TableHead>
 
-              <TableHead>Jenis Kontrak</TableHead>
+              {/* <TableHead>Jenis Kontrak</TableHead> */}
 
               <TableHead>No. Kontrak</TableHead>
 
@@ -417,7 +417,7 @@ export function MonitoringActivityTable2({
 
                           <TableCell>{item.skala || "-"}</TableCell>
 
-                          <TableCell>{item.jenis_kontrak || "-"}</TableCell>
+                          {/* <TableCell>{item.jenis_kontrak || "-"}</TableCell> */}
 
                           <TableCell className="max-w-[220px] whitespace-normal text-xs">
                             {item.nomor_kontrak || "-"}
