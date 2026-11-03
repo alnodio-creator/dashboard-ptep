@@ -1,9 +1,11 @@
 import HomePage from "@/components/commons/landing-page";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return (
-    <div>
-      <HomePage />
-    </div>
-  );
+  redirect("/Monitoring/monitoring-berkas");
+  // return (
+  //   <div>
+  //     {/* <HomePage /> */}
+  //   </div>
+  // );
 }

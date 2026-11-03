@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -235,6 +235,7 @@ export default function ProgressILASPPPageRevisi() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedContract, setSelectedContract] = useState<string | null>(null);
   const [pageSize, setPageSize] = useState(25);
+  const tableRef = useRef<HTMLDivElement>(null);
 
   const [filter, setFilter] = useState({
     wilayah: "Semua",
@@ -272,6 +273,16 @@ export default function ProgressILASPPPageRevisi() {
   });
 
   const data = response?.data ?? [];
+
+  // Menuju ke Table
+  useEffect(() => {
+    if (!isLoading && tableRef.current) {
+      tableRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  }, [isLoading]);
 
   // ======================================================
   // FILTER OPTIONS
@@ -885,7 +896,7 @@ export default function ProgressILASPPPageRevisi() {
     DETAIL TABLE - AGREGAT PER NOMOR KONTRAK
 ====================================================== */}
 
-          <Card className="border-border/60 shadow-sm">
+          <Card ref={tableRef} className="border-border/60 shadow-sm">
             <CardContent className="space-y-4 p-5">
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                 <div>
