@@ -668,7 +668,7 @@ export default function MonitoringRealisasiKontrakPage({}) {
                                     className="border-r bg-muted/10 align-middle"
                                   >
                                     <Link
-                                      href={`/Monitoring/monitoring-ilaspp/${encodeURIComponent(item.no_kontrak)}`}
+                                      href={`/Monitoring/monitoring-ilaspp/detail?nomor_kontrak=${encodeURIComponent(item.no_kontrak)}`}
                                       className="group flex w-full items-start gap-2 text-left"
                                     >
                                       <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
