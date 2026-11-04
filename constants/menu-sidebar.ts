@@ -40,14 +40,14 @@ export const SIDEBAR_MONITORING = [
     path: "/Monitoring/monitoring-berkas",
     icon: FileChartColumn,
   },
-  {
-    title: "Rekap Tahapan",
-    path: "/Monitoring/rekap-tahapan",
-    icon: Dices,
-  },
+  // {
+  //   title: "Rekap Tahapan",
+  //   path: "/Monitoring/rekap-tahapan",
+  //   icon: Dices,
+  // },
   {
     title: "Progress Capaian ILASPP 2026",
-    path: "/Monitoring/monitoring-ilaspp",
+    path: "/Monitoring/detail-persentase-perusahaan",
     icon: ClipboardList,
   },
   {
