@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { ChevronDown, ChartNoAxesCombined } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { RekapTahapanProvinsi } from "./rekap-tahapan-page";
+import { RekapTahapanProvinsi } from "@/app/Monitoring-belajar/_components/rekap-tahapan-page-belajar";
 
 type Props = {
   title: string;
