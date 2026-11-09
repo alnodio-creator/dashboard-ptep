@@ -497,8 +497,7 @@ export async function GET(request: NextRequest) {
       FROM company_progress
 
       ORDER BY
-          nama_perusahaan,
-          nomor_kontrak;
+          no_kontrak ASC;
 
     `;
 

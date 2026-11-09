@@ -13,11 +13,7 @@ import {
   Building2,
   ChartNoAxesCombined,
   AlertCircle,
-  XCircle,
-  CircleHelp,
   CalendarDays,
-  Clock3,
-  ArrowRight,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
