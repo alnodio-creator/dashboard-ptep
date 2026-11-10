@@ -55,7 +55,7 @@ SELECT
         ON zmk.kode = kl.wilayah_id 
       LEFT JOIN dashboard.znt_master_wilayah_kantor zmwk
         ON zmwk.kantorid = zmk.induk
-      Where b.no_berkas <> '01/2026/0071'
+      Where b.deleted_at is null
       ORDER BY b.created_at desc, zmwk.namakantor asc
     `;
 
