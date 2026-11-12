@@ -49,8 +49,6 @@ export async function GET(request: Request) {
         ON zmk.kode = kl.kantor_id
       LEFT JOIN dashboard.znt_master_wilayah_kantor zmwk
         ON zmwk.kantorid = zmk.induk
-      WHERE zmwk.kantorid = ${kanwilid}
-        AND k.kode_kegiatan = ${kode_kegiatan}
       ORDER BY k.tgl_mulai DESC
     `;
 

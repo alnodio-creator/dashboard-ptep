@@ -138,16 +138,20 @@ function formatDate(value: string | null | undefined) {
 }
 
 function getProgressColor(value: number) {
-  if (value >= 100) return "bg-emerald-500";
-  if (value >= 75) return "bg-blue-500";
-  if (value >= 40) return "bg-amber-500";
+  if (value >= 100) return "bg-green-800";
+  if (value >= 80) return "bg-green-600";
+  if (value >= 60) return "bg-lime-500";
+  if (value >= 40) return "bg-yellow-500";
+  if (value >= 20) return "bg-orange-500";
   return "bg-red-500";
 }
 
 function getProgressTextColor(value: number) {
-  if (value >= 100) return "text-emerald-700";
-  if (value >= 75) return "text-blue-700";
-  if (value >= 40) return "text-amber-700";
+  if (value >= 100) return "text-green-800";
+  if (value >= 80) return "text-green-700";
+  if (value >= 60) return "text-lime-700";
+  if (value >= 40) return "text-yellow-700";
+  if (value >= 20) return "text-orange-700";
   return "text-red-600";
 }
 
@@ -675,7 +679,7 @@ export default function DetailPresentasePerusahaan() {
             <Building2 className="size-5 text-blue-600" />
 
             <h3 className="text-base font-bold">
-              Monitoring Realisasi Seluruh Kontrak
+              Monitoring Realisasi Kegiatan ILASPP
             </h3>
           </div>
 

@@ -36,8 +36,8 @@ export const SelectedGunalahan = [{ comersial: {} }];
 
 export const SIDEBAR_MONITORING = [
   {
-    title: "Monitoring Berkas",
-    path: "/Monitoring/monitoring-berkas",
+    title: "Monitoring Pembaruan Peta Nilai Tanah",
+    path: "/Monitoring/detail-pembaruan",
     icon: FileChartColumn,
   },
   // {
@@ -46,7 +46,7 @@ export const SIDEBAR_MONITORING = [
   //   icon: Dices,
   // },
   {
-    title: "Progress Capaian ILASPP 2026",
+    title: "Monitoring ILASPP",
     path: "/Monitoring/detail-persentase-perusahaan",
     icon: ClipboardList,
   },

@@ -24,12 +24,6 @@ export function MonitoringSidebar() {
     ? pathname.slice(basePath.length) || "/"
     : pathname;
 
-  console.log({
-    pathname,
-    normalizedPath,
-    basePath,
-  });
-
   return (
     <Sidebar>
       <SidebarHeader>
@@ -44,7 +38,7 @@ export function MonitoringSidebar() {
                 <div className="flex flex-col gap-0.5 text-left leading-none">
                   <span className="text-sm font-semibold">Dashboard</span>
                   <span className="text-xs text-muted-foreground">
-                    Administrator
+                    Monitoring Berkas SIPENTA
                   </span>
                 </div>
               </div>

@@ -15,20 +15,14 @@ import {
   Search,
   Wallet,
 } from "lucide-react";
-
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-
 import { SummaryCard } from "./summary-card";
 import { FilterSelect } from "./filter-select";
-import { MonitoringChart } from "./chart-monitoring";
 import { formatRupiah } from "@/constants/auth-constants";
 import { formatNumber } from "@/data/land-values";
-import { MonitoringActivityTable } from "./MonitoringActivityTable";
 import { basePath } from "@/constants/menu-sidebar";
-import { ActivitySectionCollapsible } from "./monitoring-collapsible";
-import { MonitoringActivityTable2 } from "./hih";
 import { getUniqueAnggaran } from "../_helper/helper";
 import { MonitoringActivityTableRevisi } from "./revisi-table";
 import { ActivitySectionCollapsibleRevisi } from "./revisi-collapsible";
@@ -252,11 +246,6 @@ export function ActivitySection({
           )}
         </div>
       </div>
-
-      {/* <MonitoringChart
-        data={data}
-        title={`Grafik ${title} berdasarkan Sumber Anggaran`}
-      /> */}
 
       <MonitoringActivityTableRevisi data={data} title={`Detail ${title}`} />
     </section>

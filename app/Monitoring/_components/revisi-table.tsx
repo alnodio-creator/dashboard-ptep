@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 import {
@@ -27,7 +27,7 @@ import { formatRupiah } from "@/constants/auth-constants";
 import { formatNumber } from "@/data/land-values";
 
 import { Kegiatan } from "../types/type";
-import { toNumber } from "./chart-monitoring";
+import { toNumber } from "./revisi-page";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
