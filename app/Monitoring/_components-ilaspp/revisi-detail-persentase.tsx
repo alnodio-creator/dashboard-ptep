@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -14,6 +14,8 @@ import {
   ChartNoAxesCombined,
   AlertCircle,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -30,12 +32,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 import { basePath } from "@/constants/menu-sidebar";
 import { formatRupiah } from "@/constants/auth-constants";
 import { cn } from "@/lib/utils";
 
 // ======================================================
-// TYPES
+// TYPES (tidak diubah)
 // ======================================================
 
 type Tahapan = {
@@ -92,12 +102,35 @@ type ApiResponse = {
   data: ContractItem[];
 };
 
+type StatusFilter = "Filter Status" | "selesai" | "belum";
+
 // ======================================================
 // CONSTANTS
 // ======================================================
 
-const STAGE_POINT_IDS = [3, 10, 17, 25];
-const FINISHED_STAGE_IDS = [29, 30];
+const STAGE_POINT_IDS = new Set([3, 10, 17, 25]);
+const FINISHED_STAGE_IDS = new Set([29, 30]);
+
+// Jumlah kontrak per halaman (pagination per kontrak agar rowSpan utuh)
+const PAGE_SIZE = 5;
+const SEARCH_DEBOUNCE_MS = 400;
+
+// ======================================================
+// FORMATTER (dibuat sekali, bukan di setiap panggilan)
+// ======================================================
+
+const numberFormatter = new Intl.NumberFormat("id-ID");
+
+const percentFormatter = new Intl.NumberFormat("id-ID", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+const dateFormatter = new Intl.DateTimeFormat("id-ID", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+});
 
 // ======================================================
 // HELPERS
@@ -109,14 +142,11 @@ function toNumber(value: unknown): number {
 }
 
 function formatNumber(value: number) {
-  return value.toLocaleString("id-ID");
+  return numberFormatter.format(value);
 }
 
 function formatPercent(value: number) {
-  return `${value.toLocaleString("id-ID", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}%`;
+  return `${percentFormatter.format(value)}%`;
 }
 
 function normalize(value: string | null | undefined) {
@@ -130,11 +160,7 @@ function formatDate(value: string | null | undefined) {
 
   if (Number.isNaN(date.getTime())) return "-";
 
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+  return dateFormatter.format(date);
 }
 
 function getProgressColor(value: number) {
@@ -155,62 +181,70 @@ function getProgressTextColor(value: number) {
   return "text-red-600";
 }
 
-function getUniqueKabupaten(detail: KabupatenDetail[]) {
-  return new Set(
-    detail.map((item) => normalize(item.kabupaten)).filter(Boolean),
-  ).size;
+function clampProgress(value: number) {
+  return Math.min(100, Math.max(0, value));
 }
 
+const STATUS_BADGE_CLASS: Record<string, string> = {
+  TERLAMBAT:
+    "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400",
+  "TEPAT WAKTU":
+    "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400",
+  "JADWAL BELUM TERSEDIA":
+    "border-gray-200 bg-gray-100 text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400",
+};
+
+const STATUS_BADGE_FALLBACK =
+  "border-gray-200 bg-gray-50 text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400";
+
 // ======================================================
-// STATUS BADGE
+// HOOK: DEBOUNCE
 // ======================================================
 
-function StatusBadge({ status }: { status: string | null | undefined }) {
-  if (!status) {
-    return (
-      <Badge variant="outline" className="text-[9px] text-muted-foreground">
-        BELUM ADA
-      </Badge>
-    );
-  }
+function useDebounce<T>(value: T, delay = 400): T {
+  const [debounced, setDebounced] = useState(value);
 
-  const value = status.toUpperCase();
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
 
-  let className = "border-slate-200 bg-slate-100 text-slate-700";
-
-  if (value.includes("TERLAMBAT")) {
-    className = "border-red-200 bg-red-100 text-red-700";
-  } else if (value.includes("TEPAT WAKTU") || value.includes("SESUAI")) {
-    className = "border-emerald-200 bg-emerald-100 text-emerald-700";
-  } else if (value.includes("BELUM") || value.includes("TIDAK TERSEDIA")) {
-    className = "border-amber-200 bg-amber-100 text-amber-700";
-  } else if (value.includes("PROSES") || value.includes("BERJALAN")) {
-    className = "border-blue-200 bg-blue-100 text-blue-700";
-  }
-
-  return (
-    <Badge
-      variant="outline"
-      className={`whitespace-nowrap text-[9px] ${className}`}
-    >
-      {value}
-    </Badge>
-  );
+  return debounced;
 }
 
 // ======================================================
 // PROGRESS BAR
 // ======================================================
 
-function ProgressBar({
+// `transition-[width]` jauh lebih murah dibanding `transition-all`.
+const MiniBar = memo(function MiniBar({
+  value,
+  className,
+}: {
+  value: number;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn("w-full overflow-hidden rounded-full bg-muted", className)}
+    >
+      <div
+        className={`h-full rounded-full transition-[width] duration-500 ${getProgressColor(
+          value,
+        )}`}
+        style={{ width: `${clampProgress(value)}%` }}
+      />
+    </div>
+  );
+});
+
+const ProgressBar = memo(function ProgressBar({
   value,
   compact = false,
 }: {
   value: number;
   compact?: boolean;
 }) {
-  const progress = Math.min(100, Math.max(0, value));
-
   return (
     <div className="min-w-[110px] space-y-1.5">
       <div className="flex items-center justify-between gap-2">
@@ -227,23 +261,71 @@ function ProgressBar({
         )}
       </div>
 
-      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-        <div
-          className={`h-full rounded-full transition-all duration-500 ${getProgressColor(
-            value,
-          )}`}
-          style={{ width: `${progress}%` }}
-        />
-      </div>
+      <MiniBar value={value} className="h-2" />
     </div>
   );
-}
+});
 
 // ======================================================
 // STAGE CELL
 // ======================================================
 
-function StageCell({ stage }: { stage?: Tahapan }) {
+const TimelineRow = memo(function TimelineRow({
+  label,
+  deadline,
+  actual,
+  status,
+  tone,
+}: {
+  label: string;
+  deadline: string | null;
+  actual: string | null;
+  status: string | null;
+  tone: "blue" | "emerald";
+}) {
+  const iconWrap =
+    tone === "blue"
+      ? "bg-blue-100 dark:bg-blue-950"
+      : "bg-emerald-100 dark:bg-emerald-950";
+  const iconColor = tone === "blue" ? "text-blue-600" : "text-emerald-600";
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <div
+        className={`flex size-4 shrink-0 items-center justify-center rounded-full ${iconWrap}`}
+      >
+        <CalendarDays className={`size-2.5 ${iconColor}`} />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-1">
+          <span className="text-[10px] font-semibold">{label}</span>
+          <span className="text-[9px] text-muted-foreground">
+            Deadline: {formatDate(deadline)}
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between gap-1">
+          <span className="text-[9px] text-muted-foreground">
+            {formatDate(actual)}
+          </span>
+
+          <Badge
+            variant="outline"
+            className={cn(
+              "whitespace-nowrap px-1 py-0 text-[8px] font-medium leading-4",
+              (status && STATUS_BADGE_CLASS[status]) || STATUS_BADGE_FALLBACK,
+            )}
+          >
+            {status || "-"}
+          </Badge>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const StageCell = memo(function StageCell({ stage }: { stage?: Tahapan }) {
   if (!stage) {
     return (
       <TableCell className="min-w-[280px] border-l text-center align-middle">
@@ -253,7 +335,7 @@ function StageCell({ stage }: { stage?: Tahapan }) {
   }
 
   const value = toNumber(stage.realisasi);
-  const isPointStage = STAGE_POINT_IDS.includes(stage.tahapan_kegiatan_id);
+  const isPointStage = STAGE_POINT_IDS.has(stage.tahapan_kegiatan_id);
 
   return (
     <TableCell className="min-w-[240px] border-l p-2 align-top">
@@ -274,7 +356,6 @@ function StageCell({ stage }: { stage?: Tahapan }) {
         {/* CAPAIAN */}
         {isPointStage ? (
           <div className="flex flex-col items-center justify-between gap-2 rounded-md border bg-muted/20 px-2 py-1.5">
-            {/* Target Titik */}
             <div className="flex items-center gap-1.5 text-xs">
               <span className="text-muted-foreground">
                 Titik disetujui / Target
@@ -285,7 +366,6 @@ function StageCell({ stage }: { stage?: Tahapan }) {
               </span>
             </div>
 
-            {/* Checklist */}
             <div className="flex items-center gap-2 text-[10px]">
               <span className="font-semibold text-emerald-700 dark:text-emerald-400">
                 ✓ {stage.sesuai} Sesuai
@@ -331,101 +411,32 @@ function StageCell({ stage }: { stage?: Tahapan }) {
             TIMELINE TAHAPAN
           </p>
 
-          {/* MULAI */}
-          <div className="flex items-center gap-1.5">
-            <div className="flex size-4 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-950">
-              <CalendarDays className="size-2.5 text-blue-600" />
-            </div>
+          <TimelineRow
+            label="Mulai"
+            deadline={stage.tgl_mulai_timeline}
+            actual={stage.masuk_tahapan_at}
+            status={stage.status_mulai}
+            tone="blue"
+          />
 
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-[10px] font-semibold">Mulai</span>
-
-                <span className="text-[9px] text-muted-foreground">
-                  Deadline: {formatDate(stage.tgl_mulai_timeline)}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-[9px] text-muted-foreground">
-                  {formatDate(stage.masuk_tahapan_at)}
-                </span>
-
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "whitespace-nowrap px-1 py-0 text-[8px] font-medium leading-4",
-                    stage.status_mulai === "TERLAMBAT" &&
-                      "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400",
-                    stage.status_mulai === "TEPAT WAKTU" &&
-                      "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400",
-                    stage.status_mulai === "JADWAL BELUM TERSEDIA" &&
-                      "border-gray-200 bg-gray-100 text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400",
-                    !stage.status_mulai &&
-                      "border-gray-200 bg-gray-50 text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400",
-                  )}
-                >
-                  {stage.status_mulai || "-"}
-                </Badge>
-              </div>
-            </div>
-          </div>
-
-          {/* SELESAI */}
-          <div className="flex items-start gap-2">
-            <div className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950">
-              <CalendarDays className="size-3 text-emerald-600" />
-            </div>
-
-            <div className="min-w-0 flex-1 space-y-0.5">
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-[10px] font-semibold">Selesai</span>
-                <span className="text-[9px] text-muted-foreground">
-                  Deadline: {formatDate(stage.tgl_selesai_timeline)}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-[10px] text-muted-foreground">
-                  {formatDate(stage.keluar_tahapan_at)}
-                </span>
-                {stage.status_selesai ? (
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "whitespace-nowrap text-[9px] font-medium px-1.5 py-0.5",
-                      stage.status_selesai === "TERLAMBAT" &&
-                        "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400",
-                      stage.status_selesai === "TEPAT WAKTU" &&
-                        "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400",
-                      stage.status_selesai === "JADWAL BELUM TERSEDIA" &&
-                        "border-gray-200 bg-gray-100 text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400",
-                    )}
-                  >
-                    {stage.status_selesai}
-                  </Badge>
-                ) : (
-                  <Badge
-                    variant="outline"
-                    className="border-gray-200 bg-gray-50 text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
-                  >
-                    -
-                  </Badge>
-                )}
-              </div>
-            </div>
-          </div>
+          <TimelineRow
+            label="Selesai"
+            deadline={stage.tgl_selesai_timeline}
+            actual={stage.keluar_tahapan_at}
+            status={stage.status_selesai}
+            tone="emerald"
+          />
         </div>
       </div>
     </TableCell>
   );
-}
+});
 
 // ======================================================
 // SUMMARY CARD
 // ======================================================
 
-function SummaryCard({
+const SummaryCard = memo(function SummaryCard({
   title,
   value,
   description,
@@ -461,16 +472,234 @@ function SummaryCard({
       </CardContent>
     </Card>
   );
-}
+});
+
+// ======================================================
+// COMPANY CELL (kolom No + Perusahaan, rowSpan)
+// ======================================================
+
+const CompanyCell = memo(function CompanyCell({
+  contract,
+  rowSpan,
+  number,
+}: {
+  contract: ContractItem;
+  rowSpan: number;
+  number: number;
+}) {
+  const realisasi = toNumber(contract.realisasi_fisik);
+
+  return (
+    <>
+      <TableCell
+        rowSpan={rowSpan}
+        className="sticky left-0 z-20 border-r bg-background text-center align-middle font-bold"
+      >
+        {number}
+      </TableCell>
+
+      <TableCell
+        rowSpan={rowSpan}
+        className="min-w-52 border-r bg-background align-middle"
+      >
+        <div className="min-w-52 space-y-2">
+          <div className="flex items-center gap-2">
+            <Building2 className="size-4 shrink-0 text-blue-600" />
+            <span className="text-sm font-bold">
+              {contract.nama_perusahaan}
+            </span>
+          </div>
+
+          <Badge variant="outline" className="text-[10px]">
+            {contract.total_berkas} Berkas
+          </Badge>
+
+          <div className="pt-2">
+            <p className="text-[10px] text-muted-foreground">Nomor Kontrak</p>
+            <p className="break-all text-xs font-semibold">
+              {contract.no_kontrak}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-[10px] text-muted-foreground">Anggaran</p>
+            <p className="text-xs font-bold tabular-nums">
+              {formatRupiah(toNumber(contract.anggaran))}
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] text-muted-foreground">
+                Realisasi Fisik Perusahaan
+              </p>
+
+              <span
+                className={`text-xs font-bold tabular-nums ${getProgressTextColor(
+                  realisasi,
+                )}`}
+              >
+                {contract.realisasi_fisik != null
+                  ? formatPercent(realisasi)
+                  : "-"}
+              </span>
+            </div>
+
+            <MiniBar value={realisasi} className="h-1.5" />
+          </div>
+        </div>
+      </TableCell>
+    </>
+  );
+});
+
+// ======================================================
+// RECORD ROW (satu baris kabupaten)
+// ======================================================
+
+const RecordRow = memo(function RecordRow({
+  record,
+  stages,
+  companyCell,
+}: {
+  record: KabupatenDetail;
+  stages: Tahapan[];
+  companyCell: React.ReactNode;
+}) {
+  // Map tahapan dibuat sekali per record, bukan di setiap render.
+  const stageMap = useMemo(
+    () =>
+      new Map((record.tahapan ?? []).map((s) => [s.tahapan_kegiatan_id, s])),
+    [record.tahapan],
+  );
+
+  const progress = toNumber(record.realisasi_fisik);
+
+  return (
+    <TableRow className="hover:bg-muted/30">
+      {companyCell}
+
+      {/* KABUPATEN */}
+      <TableCell className="sticky left-14 z-20 min-w-52 border-r bg-background align-middle">
+        <div className="space-y-2.5">
+          <div className="flex items-center gap-1.5 text-sm font-semibold">
+            <MapPin className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="truncate">{record.kabupaten || "-"}</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1">
+            <Badge variant="outline" className="text-[10px]">
+              {record.skala || "-"}
+            </Badge>
+
+            <Badge variant="secondary" className="text-[10px]">
+              {record.no_berkas || "-"}
+            </Badge>
+          </div>
+
+          <div>
+            <Badge
+              variant="outline"
+              className={
+                record.seluruh_tahapan_selesai
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+                  : "border-blue-200 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400"
+              }
+            >
+              {record.seluruh_tahapan_selesai ? "Selesai" : "Dalam Proses"}
+            </Badge>
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground">
+                Realisasi Fisik
+              </span>
+
+              <span
+                className={`text-sm font-bold tabular-nums ${getProgressTextColor(
+                  progress,
+                )}`}
+              >
+                {formatPercent(progress)}
+              </span>
+            </div>
+
+            <MiniBar value={progress} className="h-1.5" />
+          </div>
+        </div>
+      </TableCell>
+
+      {/* TAHAPAN */}
+      {stages.map((definition) => (
+        <StageCell
+          key={definition.tahapan_kegiatan_id}
+          stage={stageMap.get(definition.tahapan_kegiatan_id)}
+        />
+      ))}
+    </TableRow>
+  );
+});
+
+// ======================================================
+// CONTRACT GROUP (semua baris satu kontrak)
+// ======================================================
+
+const ContractGroup = memo(function ContractGroup({
+  contract,
+  number,
+  stages,
+}: {
+  contract: ContractItem;
+  number: number;
+  stages: Tahapan[];
+}) {
+  const details = contract.detail ?? [];
+
+  return (
+    <>
+      {details.map((record, index) => (
+        <RecordRow
+          key={`${contract.no_kontrak}-${record.berkas_id}`}
+          record={record}
+          stages={stages}
+          companyCell={
+            index === 0 ? (
+              <CompanyCell
+                contract={contract}
+                rowSpan={details.length}
+                number={number}
+              />
+            ) : null
+          }
+        />
+      ))}
+    </>
+  );
+});
 
 // ======================================================
 // MAIN COMPONENT
 // ======================================================
 
 export default function DetailPresentasePerusahaan() {
-  const [detailSearch, setDetailSearch] = useState("");
+  // `searchInput` mengikuti ketikan (ringan), `search` baru berubah
+  // setelah user berhenti mengetik. Hanya `search` yang memicu filter.
+  const [searchInput, setSearchInput] = useState("");
+  const search = useDebounce(searchInput, SEARCH_DEBOUNCE_MS);
+
+  const [statusFilter, setStatusFilter] =
+    useState<StatusFilter>("Filter Status");
+
+  // Halaman disimpan bersama kunci filter saat dipilih. Jika filter
+  // berubah, kunci tidak cocok sehingga halaman otomatis kembali ke 1
+  // (tanpa useEffect + setState).
+  const filterKey = `${search}|${statusFilter}`;
+  const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+  const page = pageState.key === filterKey ? pageState.page : 1;
 
   const tableRef = useRef<HTMLDivElement>(null);
+  const listTopRef = useRef<HTMLDivElement>(null);
 
   // ====================================================
   // FETCH SEMUA KONTRAK
@@ -506,39 +735,64 @@ export default function DetailPresentasePerusahaan() {
     },
 
     staleTime: 1000 * 60 * 2,
+    refetchOnWindowFocus: false,
   });
+
+  useEffect(() => {
+    if (!isLoading && tableRef.current) {
+      tableRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [isLoading]);
 
   // ====================================================
   // DEFINISI TAHAPAN
   // ====================================================
 
-  useEffect(() => {
-    if (!isLoading && tableRef.current) {
-      tableRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }
-  }, [isLoading]);
-
   const stages = useMemo(() => {
     const stageMap = new Map<number, Tahapan>();
 
-    contracts.forEach((contract) => {
-      (contract.detail ?? []).forEach((record) => {
-        (record.tahapan ?? []).forEach((stage) => {
-          if (FINISHED_STAGE_IDS.includes(stage.tahapan_kegiatan_id)) {
-            return;
-          }
+    for (const contract of contracts) {
+      for (const record of contract.detail ?? []) {
+        for (const stage of record.tahapan ?? []) {
+          if (FINISHED_STAGE_IDS.has(stage.tahapan_kegiatan_id)) continue;
 
           if (!stageMap.has(stage.tahapan_kegiatan_id)) {
             stageMap.set(stage.tahapan_kegiatan_id, stage);
           }
-        });
-      });
-    });
+        }
+      }
+    }
 
     return Array.from(stageMap.values()).sort((a, b) => a.urutan - b.urutan);
+  }, [contracts]);
+
+  // ====================================================
+  // INDEX PENCARIAN
+  // Dihitung sekali saat data berubah, jadi saat filter
+  // cukup satu `includes` per baris.
+  // ====================================================
+
+  const searchIndex = useMemo(() => {
+    const contractText = new Map<ContractItem, string>();
+    const recordText = new Map<KabupatenDetail, string>();
+
+    for (const contract of contracts) {
+      contractText.set(
+        contract,
+        `${normalize(contract.nama_perusahaan)} ${normalize(contract.no_kontrak)}`,
+      );
+
+      for (const record of contract.detail ?? []) {
+        recordText.set(
+          record,
+          [record.kabupaten, record.no_berkas, record.skala]
+            .map(normalize)
+            .join(" "),
+        );
+      }
+    }
+
+    return { contractText, recordText };
   }, [contracts]);
 
   // ====================================================
@@ -546,74 +800,94 @@ export default function DetailPresentasePerusahaan() {
   // ====================================================
 
   const filteredContracts = useMemo(() => {
-    const keyword = normalize(detailSearch);
+    const keyword = normalize(search);
 
-    if (!keyword) return contracts;
+    if (!keyword && statusFilter === "Filter Status") return contracts;
 
-    return contracts
-      .map((contract) => {
-        const companyMatch =
-          normalize(contract.nama_perusahaan).includes(keyword) ||
-          normalize(contract.no_kontrak).includes(keyword);
+    const result: ContractItem[] = [];
 
-        const filteredDetail = companyMatch
-          ? contract.detail
-          : (contract.detail ?? []).filter(
-              (record) =>
-                normalize(record.kabupaten).includes(keyword) ||
-                normalize(record.no_berkas).includes(keyword) ||
-                normalize(record.skala).includes(keyword),
-            );
+    for (const contract of contracts) {
+      const companyMatch =
+        !!keyword &&
+        (searchIndex.contractText.get(contract) ?? "").includes(keyword);
 
-        return {
-          ...contract,
-          detail: filteredDetail,
-        };
-      })
-      .filter((contract) => contract.detail.length > 0);
-  }, [contracts, detailSearch]);
+      const detail = (contract.detail ?? []).filter((record) => {
+        if (statusFilter === "selesai" && !record.seluruh_tahapan_selesai) {
+          return false;
+        }
+        if (statusFilter === "belum" && record.seluruh_tahapan_selesai) {
+          return false;
+        }
+
+        if (!keyword || companyMatch) return true;
+
+        return (searchIndex.recordText.get(record) ?? "").includes(keyword);
+      });
+
+      if (detail.length > 0) result.push({ ...contract, detail });
+    }
+
+    return result;
+  }, [contracts, searchIndex, search, statusFilter]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredContracts.length / PAGE_SIZE),
+  );
+  const currentPage = Math.min(page, totalPages);
+
+  const pagedContracts = useMemo(
+    () =>
+      filteredContracts.slice(
+        (currentPage - 1) * PAGE_SIZE,
+        currentPage * PAGE_SIZE,
+      ),
+    [filteredContracts, currentPage],
+  );
+
+  const totalFilteredRows = useMemo(
+    () => filteredContracts.reduce((sum, c) => sum + c.detail.length, 0),
+    [filteredContracts],
+  );
+
+  const goToPage = (next: number) => {
+    setPageState({ key: filterKey, page: next });
+    listTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   // ====================================================
-  // DATA SUMMARY SELURUH KONTRAK
+  // DATA SUMMARY SELURUH KONTRAK (satu loop)
   // ====================================================
 
   const summary = useMemo(() => {
-    const totalAnggaran = contracts.reduce(
-      (sum, contract) => sum + toNumber(contract.anggaran),
-      0,
-    );
+    let totalAnggaran = 0;
+    let totalBerkas = 0;
+    let totalSelesai = 0;
+    let totalRealisasi = 0;
+    const kabupatenSet = new Set<string>();
 
-    const totalBerkas = contracts.reduce(
-      (sum, contract) => sum + (contract.detail?.length ?? 0),
-      0,
-    );
+    for (const contract of contracts) {
+      const details = contract.detail ?? [];
 
-    const allDetails = contracts.flatMap((contract) => contract.detail ?? []);
+      totalAnggaran += toNumber(contract.anggaran);
+      totalBerkas += details.length;
+      totalRealisasi += toNumber(contract.realisasi_fisik) * details.length;
 
-    const totalSelesai = allDetails.filter(
-      (item) => item.seluruh_tahapan_selesai,
-    ).length;
+      for (const item of details) {
+        if (item.seluruh_tahapan_selesai) totalSelesai++;
 
-    const totalProses = totalBerkas - totalSelesai;
-
-    const totalKabupaten = getUniqueKabupaten(allDetails);
-
-    // Rata-rata realisasi fisik per kontrak berbobot jumlah berkas.
-    const totalRealisasi = contracts.reduce((sum, contract) => {
-      const jumlahBerkas = contract.detail?.length ?? 0;
-
-      return sum + toNumber(contract.realisasi_fisik) * jumlahBerkas;
-    }, 0);
-
-    const realisasi = totalBerkas > 0 ? totalRealisasi / totalBerkas : 0;
+        const key = normalize(item.kabupaten);
+        if (key) kabupatenSet.add(key);
+      }
+    }
 
     return {
       totalAnggaran,
       totalBerkas,
       totalSelesai,
-      totalProses,
-      totalKabupaten,
-      realisasi,
+      totalProses: totalBerkas - totalSelesai,
+      totalKabupaten: kabupatenSet.size,
+      realisasi: totalBerkas > 0 ? totalRealisasi / totalBerkas : 0,
     };
   }, [contracts]);
 
@@ -660,14 +934,11 @@ export default function DetailPresentasePerusahaan() {
     );
   }
 
-  // ====================================================
-  // TABLE TOTAL
-  // ====================================================
+  const allDone =
+    summary.totalBerkas > 0 && summary.totalSelesai === summary.totalBerkas;
 
-  const totalFilteredRows = filteredContracts.reduce(
-    (sum, contract) => sum + contract.detail.length,
-    0,
-  );
+  // True selama debounce berjalan
+  const isTyping = searchInput !== search;
 
   return (
     <div className="space-y-5 p-4 md:p-6">
@@ -764,16 +1035,12 @@ export default function DetailPresentasePerusahaan() {
             <Badge
               variant="outline"
               className={
-                summary.totalBerkas > 0 &&
-                summary.totalSelesai === summary.totalBerkas
+                allDone
                   ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                   : "border-blue-200 bg-blue-50 text-blue-700"
               }
             >
-              {summary.totalBerkas > 0 &&
-              summary.totalSelesai === summary.totalBerkas
-                ? "Seluruh Berkas Selesai"
-                : "Dalam Proses"}
+              {allDone ? "Seluruh Berkas Selesai" : "Dalam Proses"}
             </Badge>
           </div>
 
@@ -789,9 +1056,12 @@ export default function DetailPresentasePerusahaan() {
         </CardContent>
       </Card>
 
-      {/* SEARCH */}
+      {/* SEARCH & FILTER */}
 
-      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+      <div
+        ref={listTopRef}
+        className="flex scroll-mt-4 flex-col justify-between gap-3 sm:flex-row sm:items-center"
+      >
         <div>
           <h4 className="font-bold">Rincian Capaian Kabupaten</h4>
 
@@ -801,21 +1071,47 @@ export default function DetailPresentasePerusahaan() {
           </p>
         </div>
 
-        <div className="relative w-full sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative w-full sm:min-w-55 sm:flex-1">
+            {isTyping ? (
+              <RefreshCw className="absolute left-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+            ) : (
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            )}
 
-          <Input
-            value={detailSearch}
-            onChange={(event) => setDetailSearch(event.target.value)}
-            placeholder="Cari perusahaan, kontrak, kabupaten..."
-            className="h-10 pl-9"
-          />
+            <Input
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Cari perusahaan, kontrak, kabupaten..."
+              className="h-10 pl-9"
+            />
+          </div>
+
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+          >
+            <SelectTrigger className="h-10 w-full sm:w-40">
+              <SelectValue placeholder="Status Tahapan" />
+            </SelectTrigger>
+
+            <SelectContent>
+              <SelectItem value="Filter Status">Filter Status</SelectItem>
+              <SelectItem value="selesai">Selesai</SelectItem>
+              <SelectItem value="belum">Belum Selesai</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
       {/* TABLE */}
 
-      <div className="w-full overflow-x-auto rounded-lg border bg-background">
+      <div
+        className={cn(
+          "w-full overflow-x-auto rounded-lg border bg-background transition-opacity",
+          isTyping && "opacity-70",
+        )}
+      >
         <Table className="w-max min-w-full">
           <TableHeader>
             <TableRow className="bg-muted/70">
@@ -826,14 +1122,6 @@ export default function DetailPresentasePerusahaan() {
               <TableHead className="min-w-52 border-r bg-muted">
                 Nama Perusahaan
               </TableHead>
-
-              {/* <TableHead className="min-w-64 border-r text-center">
-                Nomor Kontrak
-              </TableHead>
-
-              <TableHead className="min-w-40 border-r text-right">
-                Anggaran
-              </TableHead> */}
 
               <TableHead className="sticky left-14 z-30 min-w-52 border-r bg-muted">
                 Kabupaten
@@ -852,25 +1140,21 @@ export default function DetailPresentasePerusahaan() {
                     Bobot {stage.bobot}%
                   </div>
 
-                  {STAGE_POINT_IDS.includes(stage.tahapan_kegiatan_id) && (
+                  {STAGE_POINT_IDS.has(stage.tahapan_kegiatan_id) && (
                     <Badge variant="secondary" className="mt-1 text-[9px]">
                       Capaian Titik
                     </Badge>
                   )}
                 </TableHead>
               ))}
-
-              {/* <TableHead className="sticky right-0 z-30 min-w-36 border-l bg-muted text-center">
-                Realisasi Fisik
-              </TableHead> */}
             </TableRow>
           </TableHeader>
 
           <TableBody>
-            {filteredContracts.length === 0 ? (
+            {pagedContracts.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={stages.length + 6}
+                  colSpan={stages.length + 3}
                   className="h-28 text-center text-muted-foreground"
                 >
                   {contracts.length === 0
@@ -879,264 +1163,55 @@ export default function DetailPresentasePerusahaan() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredContracts.map((contract, contractIndex) => {
-                const contractDetails = contract.detail ?? [];
-                const contractRowSpan = contractDetails.length;
-
-                return contractDetails.map((record, detailIndex) => {
-                  const stageMap = new Map(
-                    (record.tahapan ?? []).map((stage) => [
-                      stage.tahapan_kegiatan_id,
-                      stage,
-                    ]),
-                  );
-
-                  const progress = toNumber(record.realisasi_fisik);
-
-                  const isFirstRow = detailIndex === 0;
-
-                  return (
-                    <TableRow
-                      key={`${contract.no_kontrak}-${record.berkas_id}`}
-                      className="transition-colors hover:bg-muted/30"
-                    >
-                      {/* NOMOR */}
-
-                      {isFirstRow && (
-                        <TableCell
-                          rowSpan={contractRowSpan}
-                          className="sticky left-0 z-20 border-r bg-background text-center align-middle font-bold"
-                        >
-                          {contractIndex + 1}
-                        </TableCell>
-                      )}
-
-                      {/* PERUSAHAAN */}
-
-                      {isFirstRow && (
-                        <TableCell
-                          rowSpan={contractRowSpan}
-                          className="min-w-52 border-r bg-background align-middle"
-                        >
-                          <div className="min-w-52 space-y-2">
-                            <div className="flex items-center gap-2">
-                              <Building2 className="size-4 shrink-0 text-blue-600" />
-
-                              <span className="text-sm font-bold">
-                                {contract.nama_perusahaan}
-                              </span>
-                            </div>
-
-                            <Badge variant="outline" className="text-[10px]">
-                              {contract.total_berkas} Berkas
-                            </Badge>
-
-                            <div className="pt-2">
-                              <p className="text-[10px] text-muted-foreground">
-                                Nomor Kontrak
-                              </p>
-                              <p className="break-all text-xs font-semibold">
-                                {contract.no_kontrak}
-                              </p>
-                            </div>
-
-                            <div>
-                              <p className="text-[10px] text-muted-foreground">
-                                Anggaran
-                              </p>
-                              <p className="text-xs font-bold tabular-nums">
-                                {formatRupiah(toNumber(contract.anggaran))}
-                              </p>
-                            </div>
-
-                            <div className="space-y-1.5">
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="text-[10px] text-muted-foreground">
-                                  Realisasi Fisik Perusahaan
-                                </p>
-
-                                <span
-                                  className={`text-xs font-bold tabular-nums ${getProgressTextColor(
-                                    toNumber(contract.realisasi_fisik),
-                                  )}`}
-                                >
-                                  {contract.realisasi_fisik != null
-                                    ? formatPercent(
-                                        toNumber(contract.realisasi_fisik),
-                                      )
-                                    : "-"}
-                                </span>
-                              </div>
-
-                              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                                <div
-                                  className={`h-full rounded-full transition-all ${getProgressColor(
-                                    toNumber(contract.realisasi_fisik),
-                                  )}`}
-                                  style={{
-                                    width: `${Math.min(
-                                      100,
-                                      Math.max(
-                                        0,
-                                        toNumber(contract.realisasi_fisik),
-                                      ),
-                                    )}%`,
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </TableCell>
-                      )}
-
-                      {/* NOMOR KONTRAK */}
-
-                      {/* {isFirstRow && (
-                        <TableCell
-                          rowSpan={contractRowSpan}
-                          className="border-r text-center align-middle"
-                        >
-                          <p className="max-w-64 whitespace-normal break-all text-xs font-semibold">
-                            {contract.no_kontrak}
-                          </p>
-                        </TableCell>
-                      )} */}
-
-                      {/* ANGGARAN */}
-
-                      {/* {isFirstRow && (
-                        <TableCell
-                          rowSpan={contractRowSpan}
-                          className="border-r text-right align-middle"
-                        >
-                          <p className="whitespace-nowrap text-xs font-bold tabular-nums">
-                            {formatRupiah(toNumber(contract.anggaran))}
-                          </p>
-                        </TableCell>
-                      )} */}
-
-                      {/* KABUPATEN */}
-
-                      <TableCell className="sticky left-14 z-20 min-w-52 border-r bg-background align-middle">
-                        <div className="space-y-2.5">
-                          {/* Kabupaten */}
-                          <div className="flex items-center gap-1.5 text-sm font-semibold">
-                            <MapPin className="size-3.5 shrink-0 text-muted-foreground" />
-                            <span className="truncate">
-                              {record.kabupaten || "-"}
-                            </span>
-                          </div>
-
-                          {/* Identitas Berkas */}
-                          <div className="flex flex-wrap items-center gap-1">
-                            <Badge variant="outline" className="text-[10px]">
-                              {record.skala || "-"}
-                            </Badge>
-
-                            <Badge variant="secondary" className="text-[10px]">
-                              {record.no_berkas || "-"}
-                            </Badge>
-                          </div>
-
-                          {/* Status */}
-                          <div>
-                            <Badge
-                              variant="outline"
-                              className={
-                                record.seluruh_tahapan_selesai
-                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
-                                  : "border-blue-200 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400"
-                              }
-                            >
-                              {record.seluruh_tahapan_selesai
-                                ? "Selesai"
-                                : "Dalam Proses"}
-                            </Badge>
-                          </div>
-
-                          {/* Progress */}
-                          <div className="space-y-1.5">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] text-muted-foreground">
-                                Realisasi Fisik
-                              </span>
-
-                              <span
-                                className={`text-sm font-bold tabular-nums ${getProgressTextColor(
-                                  progress,
-                                )}`}
-                              >
-                                {formatPercent(progress)}
-                              </span>
-                            </div>
-
-                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                              <div
-                                className={`h-full rounded-full transition-all ${getProgressColor(
-                                  progress,
-                                )}`}
-                                style={{
-                                  width: `${Math.min(100, Math.max(0, progress))}%`,
-                                }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
-
-                      {/* TAHAPAN */}
-
-                      {stages.map((definition) => (
-                        <StageCell
-                          key={definition.tahapan_kegiatan_id}
-                          stage={stageMap.get(definition.tahapan_kegiatan_id)}
-                        />
-                      ))}
-
-                      {/* REALISASI FISIK */}
-
-                      {/* <TableCell className="sticky right-0 z-10 border-l bg-background text-center align-middle">
-                        <div className="mx-auto min-w-[110px] space-y-2">
-                          <p
-                            className={`text-lg font-bold tabular-nums ${getProgressTextColor(
-                              progress,
-                            )}`}
-                          >
-                            {formatPercent(progress)}
-                          </p>
-
-                          <div className="h-2 overflow-hidden rounded-full bg-muted">
-                            <div
-                              className={`h-full rounded-full transition-all ${getProgressColor(
-                                progress,
-                              )}`}
-                              style={{
-                                width: `${Math.min(
-                                  100,
-                                  Math.max(0, progress),
-                                )}%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </TableCell> */}
-                    </TableRow>
-                  );
-                });
-              })
+              pagedContracts.map((contract, index) => (
+                <ContractGroup
+                  key={contract.no_kontrak}
+                  contract={contract}
+                  number={(currentPage - 1) * PAGE_SIZE + index + 1}
+                  stages={stages}
+                />
+              ))
             )}
           </TableBody>
         </Table>
       </div>
 
-      {/* FOOTER */}
+      {/* FOOTER + PAGINATION */}
 
-      <div className="flex flex-col justify-between gap-2 text-xs text-muted-foreground sm:flex-row">
+      <div className="flex flex-col items-start justify-between gap-3 text-xs text-muted-foreground sm:flex-row sm:items-center">
         <p>
           Menampilkan {formatNumber(totalFilteredRows)} berkas dari{" "}
           {formatNumber(summary.totalBerkas)} berkas. Total{" "}
           {formatNumber(filteredContracts.length)} kontrak.
         </p>
+
+        {filteredContracts.length > PAGE_SIZE && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage <= 1}
+              onClick={() => goToPage(currentPage - 1)}
+            >
+              <ChevronLeft className="mr-1 size-3.5" />
+              Sebelumnya
+            </Button>
+
+            <span className="tabular-nums">
+              Halaman {currentPage} / {totalPages}
+            </span>
+
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage >= totalPages}
+              onClick={() => goToPage(currentPage + 1)}
+            >
+              Berikutnya
+              <ChevronRight className="ml-1 size-3.5" />
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
