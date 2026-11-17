@@ -54,21 +54,18 @@ type Tahapan = {
   urutan: number;
   bobot: number;
   realisasi: number | null;
-
   target_titik: number;
   total_approved: number;
-
   sesuai: number;
   tidak_sesuai: number;
   belum_diperiksa: number;
   total_checklist: number;
-
+  std_sesuai: string | number; // tambahan
+  jumlah_zona: string | number; // tambahan
   masuk_tahapan_at: string | null;
   keluar_tahapan_at: string | null;
-
   tgl_mulai_timeline: string | null;
   tgl_selesai_timeline: string | null;
-
   status_mulai: string | null;
   status_selesai: string | null;
 };
@@ -109,6 +106,7 @@ type StatusFilter = "Filter Status" | "selesai" | "belum";
 // ======================================================
 
 const STAGE_POINT_IDS = new Set([3, 10, 17, 25]);
+const STAGE_POINT_IDS2 = new Set([4, 11, 18, 26]);
 const FINISHED_STAGE_IDS = new Set([29, 30]);
 
 // Jumlah kontrak per halaman (pagination per kontrak agar rowSpan utuh)
@@ -246,7 +244,7 @@ const ProgressBar = memo(function ProgressBar({
   compact?: boolean;
 }) {
   return (
-    <div className="min-w-[110px] space-y-1.5">
+    <div className="min-w-27.5 space-y-1.5">
       <div className="flex items-center justify-between gap-2">
         <span
           className={`font-bold tabular-nums ${getProgressTextColor(value)} ${
@@ -328,7 +326,7 @@ const TimelineRow = memo(function TimelineRow({
 const StageCell = memo(function StageCell({ stage }: { stage?: Tahapan }) {
   if (!stage) {
     return (
-      <TableCell className="min-w-[280px] border-l text-center align-middle">
+      <TableCell className="min-w-70 border-l text-center align-middle">
         <span className="text-xs text-muted-foreground">-</span>
       </TableCell>
     );
@@ -336,9 +334,10 @@ const StageCell = memo(function StageCell({ stage }: { stage?: Tahapan }) {
 
   const value = toNumber(stage.realisasi);
   const isPointStage = STAGE_POINT_IDS.has(stage.tahapan_kegiatan_id);
+  const isPointStage2 = STAGE_POINT_IDS2.has(stage.tahapan_kegiatan_id);
 
   return (
-    <TableCell className="min-w-[240px] border-l p-2 align-top">
+    <TableCell className="min-w-60 border-l p-2 align-top">
       <div className="space-y-2">
         {/* PROGRESS */}
         <div className="space-y-1">
@@ -360,9 +359,49 @@ const StageCell = memo(function StageCell({ stage }: { stage?: Tahapan }) {
               <span className="text-muted-foreground">
                 Titik disetujui / Target
               </span>
+
               <span className="font-bold tabular-nums">
                 {formatNumber(toNumber(stage.total_approved))}/
                 {formatNumber(toNumber(stage.target_titik))}
+              </span>
+
+              {toNumber(stage.target_titik) > 0 &&
+                Math.min(
+                  toNumber(stage.total_approved) / toNumber(stage.target_titik),
+                  1,
+                ) >= 1 && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs font-semibold text-emerald-600">
+                      100%
+                    </span>
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  </div>
+                )}
+            </div>
+
+            <div className="flex items-center gap-2 text-[10px]">
+              <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                ✓ {stage.sesuai} Sesuai
+              </span>
+
+              <span className="font-semibold text-red-600 dark:text-red-400">
+                ✕ {stage.tidak_sesuai} Tidak sesuai
+              </span>
+
+              <span className="font-semibold text-muted-foreground">
+                {stage.sesuai}/{stage.total_checklist} Keseluruhan
+              </span>
+            </div>
+          </div>
+        ) : isPointStage2 ? (
+          <div className="flex flex-col items-center justify-between gap-2 rounded-md border bg-muted/20 px-2 py-1.5">
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-muted-foreground">
+                Zona Std sesuai / Jumlah Zona
+              </span>
+              <span className="font-bold tabular-nums">
+                {formatNumber(toNumber(stage.std_sesuai))}/
+                {formatNumber(toNumber(stage.jumlah_zona))}
               </span>
             </div>
 
@@ -412,7 +451,7 @@ const StageCell = memo(function StageCell({ stage }: { stage?: Tahapan }) {
           </p>
 
           <TimelineRow
-            label="Mulai"
+            label="Masuk Tahapan pada"
             deadline={stage.tgl_mulai_timeline}
             actual={stage.masuk_tahapan_at}
             status={stage.status_mulai}
@@ -420,7 +459,7 @@ const StageCell = memo(function StageCell({ stage }: { stage?: Tahapan }) {
           />
 
           <TimelineRow
-            label="Selesai"
+            label="Keluar Tahapan pada"
             deadline={stage.tgl_selesai_timeline}
             actual={stage.keluar_tahapan_at}
             status={stage.status_selesai}
@@ -897,7 +936,7 @@ export default function DetailPresentasePerusahaan() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[250px] flex-col items-center justify-center gap-3">
+      <div className="flex min-h-62.5 flex-col items-center justify-center gap-3">
         <RefreshCw className="size-7 animate-spin text-blue-600" />
 
         <p className="text-sm text-muted-foreground">
@@ -913,7 +952,7 @@ export default function DetailPresentasePerusahaan() {
 
   if (isError) {
     return (
-      <div className="flex min-h-[250px] flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-6">
+      <div className="flex min-h-62.5 flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-6">
         <AlertCircle className="size-9 text-red-500" />
 
         <div className="text-center">
@@ -1130,7 +1169,7 @@ export default function DetailPresentasePerusahaan() {
               {stages.map((stage) => (
                 <TableHead
                   key={stage.tahapan_kegiatan_id}
-                  className="min-w-[280px] border-l text-center"
+                  className="min-w-70 border-l text-center"
                 >
                   <div className="whitespace-normal text-xs font-bold">
                     {stage.urutan}. {stage.nama_tahapan}
@@ -1143,6 +1182,12 @@ export default function DetailPresentasePerusahaan() {
                   {STAGE_POINT_IDS.has(stage.tahapan_kegiatan_id) && (
                     <Badge variant="secondary" className="mt-1 text-[9px]">
                       Capaian Titik
+                    </Badge>
+                  )}
+
+                  {STAGE_POINT_IDS2.has(stage.tahapan_kegiatan_id) && (
+                    <Badge variant="secondary" className="mt-1 text-[9px]">
+                      Capaian Zona
                     </Badge>
                   )}
                 </TableHead>

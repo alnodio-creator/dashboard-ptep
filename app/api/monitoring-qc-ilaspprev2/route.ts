@@ -18,6 +18,8 @@ export type TahapanRealisasi = {
   tidak_sesuai: number;
   belum_diperiksa: number;
   target_titik: number | null;
+  jumlah_zona: number | null;
+  std_sesuai: number | null;
   total_approved: number | null;
   realisasi: number | null;
 
@@ -56,13 +58,12 @@ export type MonitoringRealisasiKontrak = {
 // GET API
 // ============================================
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const data = await prismaPenilaianTanah.$queryRaw<
       MonitoringRealisasiKontrak[]
     >`
-
-      WITH stage_config AS (
+ WITH stage_config AS (
           SELECT
               tk.kode AS kode_kegiatan,
               tk.tahapan_kegiatan_id,
@@ -90,39 +91,28 @@ export async function GET(request: NextRequest) {
               zmwk.namakantor,
               kl.nama AS kabupaten,
               zmwk.kantorid AS kanwilid
-
           FROM tatausaha.berkas b
-
           INNER JOIN tatausaha.kegiatan k
               ON b.kontrak_id = k.kegiatan_id
-
           INNER JOIN tatausaha.kegiatan_lokasi kl
               ON k.kegiatan_id = kl.kegiatan_id
-
           INNER JOIN tatausaha.kegiatan_kontrak kk
               ON k.kegiatan_id = kk.kegiatan_id
-
           INNER JOIN dashboard.znt_master_kantor zmk
               ON zmk.kode = kl.wilayah_id
-
           INNER JOIN dashboard.znt_master_wilayah_kantor zmwk
               ON zmwk.kantorid = zmk.induk
-
           WHERE
               k.tgl_mulai >= DATE_TRUNC('year', CURRENT_DATE)
-
               AND k.tgl_mulai < DATE_TRUNC('year', CURRENT_DATE)
                   + INTERVAL '1 year'
-
               AND b.no_berkas <> '01/2026/0071'
-
               AND k.nama_anggaran = 'PHLN'
       ),
 
       -- ============================================
       -- 2. CHECKLIST TERBARU
       -- ============================================
-
       latest_checklist AS (
           SELECT DISTINCT ON (
               fc.berkas_id,
@@ -133,9 +123,7 @@ export async function GET(request: NextRequest) {
               fc.status_kesesuaian,
               fc.catatan,
               fc.created_at
-
           FROM tatausaha.form_checklist fc
-
           ORDER BY
               fc.berkas_id,
               fc.master_checklist_id,
@@ -157,69 +145,93 @@ export async function GET(request: NextRequest) {
               vhtd.masuk_tahapan_at,
               vhtd.keluar_tahapan_at,
               vhtd.tahapan_kegiatan_id
-
           FROM tatausaha.v_history_timeline_durasi vhtd
-
           INNER JOIN berkas_list bl
               ON bl.berkas_id = vhtd.berkas_id
-
           ORDER BY
               vhtd.berkas_id,
               vhtd.nama_tahapan,
               vhtd.tahapan_kegiatan_id ASC,
-              vhtd.masuk_tahapan_at ASC
+              vhtd.masuk_tahapan_at asc,
+              vhtd.keluar_tahapan_at desc --penambahan order by disini
       ),
 
       -- ============================================
-      -- 4. TIMELINE + JADWAL PER TAHAPAN
+      -- 4. TIMELINE + JADWAL PER TAHAPAN revisi ini untuk yang tahap 4 dan tahap 5
       -- ============================================
-
       timeline_detail AS (
           SELECT
-              ht.berkas_id,
-              ht.tahapan_kegiatan_id,
-              ht.masuk_tahapan_at,
-              ht.keluar_tahapan_at,
-              kt.tgl_mulai AS tgl_mulai_timeline,
-              kt.tgl_selesai AS tgl_selesai_timeline,
-
-              CASE
-                  WHEN ht.masuk_tahapan_at IS NULL
-                      THEN 'BELUM DIMULAI'
-
-                  WHEN kt.tgl_mulai IS NULL
-                      THEN 'JADWAL BELUM TERSEDIA'
-
-                  WHEN ht.masuk_tahapan_at::DATE <= kt.tgl_mulai::DATE
-                      THEN 'TEPAT WAKTU'
-
-                  ELSE 'TERLAMBAT'
-              END AS status_mulai,
-
-              CASE
-                  WHEN ht.keluar_tahapan_at IS NULL
-                      THEN 'BELUM SELESAI'
-
-                  WHEN kt.tgl_selesai IS NULL
-                      THEN 'JADWAL BELUM TERSEDIA'
-
-                  WHEN ht.keluar_tahapan_at::DATE <= kt.tgl_selesai::DATE
-                      THEN 'TEPAT WAKTU'
-
-                  ELSE 'TERLAMBAT'
-              END AS status_selesai
-
-          FROM history_timeline ht
-
-          LEFT JOIN tatausaha.kegiatan_timeline kt
-              ON ht.tahapan_kegiatan_id = kt.tahapan_kegiatan_id
-              AND ht.berkas_id = kt.berkas_id
+			    kt.berkas_id,
+			    kt.tahapan_kegiatan_id,
+			    ht.masuk_tahapan_at,
+			    ht.keluar_tahapan_at,
+			    kt.tgl_mulai AS tgl_mulai_timeline,
+			    kt.tgl_selesai AS tgl_selesai_timeline,
+			
+			    CASE
+			        WHEN ht.masuk_tahapan_at IS NULL
+			            THEN 'Berkas Belum Dimulai'
+			        WHEN kt.tgl_mulai IS NULL
+			            THEN 'JADWAL BELUM TERSEDIA'
+			        WHEN ht.masuk_tahapan_at::DATE <= kt.tgl_mulai::DATE
+			            THEN 'TEPAT WAKTU'
+			        ELSE 'TERLAMBAT'
+			    END AS status_mulai,
+			
+			    case
+				    when ht.masuk_tahapan_at is not null
+				    	and ht.keluar_tahapan_at is null
+				    	and CURRENT_DATE < kt.tgl_selesai::DATE
+			            THEN 'ON PROGRESS'
+				    WHEN ht.keluar_tahapan_at IS NOT NULL
+			             AND ht.keluar_tahapan_at::DATE <= kt.tgl_selesai::DATE
+			            THEN 'TEPAT WAKTU'
+			        WHEN ht.keluar_tahapan_at IS NOT NULL
+			             AND ht.keluar_tahapan_at::DATE > kt.tgl_selesai::DATE
+			            THEN 'TERLAMBAT'
+				    else 'Berkas Belum Dimulai'
+			    END AS status_selesai
+			FROM tatausaha.kegiatan_timeline kt
+			LEFT JOIN history_timeline ht
+			    ON ht.tahapan_kegiatan_id = kt.tahapan_kegiatan_id
+			    AND ht.berkas_id = kt.berkas_id
+			ORDER BY kt.tahapan_kegiatan_id
       ),
-
+      -- ============================================
+      -- TAHAP 5 STD per berkas
+      -- ============================================
+      std_perberkas AS (
+			    SELECT
+			    bl.berkas_id,
+			    bl.no_berkas,
+			    -- Jumlah zona
+			    COUNT(pz.smpbkrel)::INTEGER::TEXT AS jumlah_zona,
+			    -- Zona standar sesuai
+			    COUNT(pz.smpbkrel) FILTER (
+			        WHERE pz.smpbkrel <> 0
+			    )::INTEGER::TEXT AS zona_std_sesuai,
+			    -- Zona standar tidak sesuai
+			    COUNT(pz.smpbkrel) FILTER (
+			        WHERE pz.smpbkrel = 0
+			    )::INTEGER::TEXT AS zona_std_tdk_sesuai,
+			    -- Persentase standar sesuai
+			    ROUND(
+			        COUNT(pz.smpbkrel) FILTER (
+			            WHERE pz.smpbkrel <> 0
+			        )::NUMERIC
+			        / NULLIF(COUNT(pz.smpbkrel), 0) * 100,
+			        2
+			    ) AS persentase_std
+			FROM berkas_list bl
+			LEFT JOIN tatausaha.peta_znt pz
+			    ON bl.berkas_id = pz.berkas_id
+			GROUP BY
+			    bl.berkas_id,
+			    bl.no_berkas
+      ),
       -- ============================================
       -- 5. STATISTIK CHECKLIST DAN TITIK SAMPEL
       -- ============================================
-
       stage_stats AS (
           SELECT
               bl.berkas_id,
@@ -232,47 +244,40 @@ export async function GET(request: NextRequest) {
               bl.namakantor,
               bl.kabupaten,
               bl.kanwilid,
-
               vcp.target_titik,
               vcp.total_approved,
-
+              sp.jumlah_zona,
+              sp.zona_std_sesuai,
+              sp.zona_std_tdk_sesuai,
               sc.tahapan_kegiatan_id,
               sc.nama_tahapan,
               sc.bobot,
               sc.ord,
-
               COUNT(mc.master_checklist_id)::INT
                   AS total_checklist,
-
               COUNT(mc.master_checklist_id) FILTER (
                   WHERE UPPER(TRIM(lc.status_kesesuaian)) = 'SESUAI'
               )::INT AS sesuai,
-
               COUNT(mc.master_checklist_id) FILTER (
                   WHERE UPPER(TRIM(lc.status_kesesuaian)) = 'TIDAK_SESUAI'
               )::INT AS tidak_sesuai,
-
               COUNT(mc.master_checklist_id) FILTER (
                   WHERE lc.master_checklist_id IS NULL
               )::INT AS belum_diperiksa
-
           FROM berkas_list bl
-
           INNER JOIN stage_config sc
               ON sc.kode_kegiatan = bl.kode_kegiatan
-
           LEFT JOIN tatausaha.master_checklist mc
               ON mc.tahapan_kegiatan_id = sc.tahapan_kegiatan_id
               AND mc.is_required = TRUE
               AND mc.is_aktif = TRUE
-
           LEFT JOIN latest_checklist lc
               ON lc.berkas_id = bl.berkas_id
               AND lc.master_checklist_id = mc.master_checklist_id
-
           LEFT JOIN tatausaha.v_combined_progress vcp
               ON bl.no_berkas = vcp.no_berkas
-
+          LEFT join std_perberkas sp
+          	  on bl.berkas_id = sp.berkas_id
           GROUP BY
               bl.berkas_id,
               bl.no_berkas,
@@ -286,39 +291,65 @@ export async function GET(request: NextRequest) {
               bl.kanwilid,
               vcp.target_titik,
               vcp.total_approved,
+              sp.jumlah_zona,
+              sp.zona_std_sesuai,
+              sp.zona_std_tdk_sesuai,
               sc.tahapan_kegiatan_id,
               sc.nama_tahapan,
               sc.bobot,
               sc.ord
       ),
-
       -- ============================================
       -- 6. REALISASI SETIAP TAHAPAN
       -- ============================================
-
       stage_progress AS (
           SELECT
               *,
 
-              CASE
+              case
+	              WHEN tahapan_kegiatan_id IN (4, 11, 18, 26)
+				     AND total_checklist > 0
+				     AND COALESCE(target_titik, 0) > 0
+				
+				THEN ROUND(
+				    (
+				        (
+				            sesuai::NUMERIC
+				            / NULLIF(total_checklist, 0) * 0.5
+				        )
+				        +
+				        (
+				            NULLIF(zona_std_sesuai, 'BELUM MENGOLAH STD ZONA')::NUMERIC
+				            / NULLIF(
+				                NULLIF(jumlah_zona, 'BELUM MENGOLAH STD ZONA')::NUMERIC,
+				                0
+				            ) * 0.5
+				        )
+				    ) * 100,
+				    2
+				)
+	              
                   WHEN tahapan_kegiatan_id IN (3, 10, 17, 25)
-                      AND total_checklist > 0
-                      AND COALESCE(target_titik, 0) > 0
-
-                  THEN ROUND(
-                      (
-                          (
-                              sesuai::NUMERIC
-                              / NULLIF(total_checklist, 0) * 0.5
-                          )
-                          +
-                          (
-                              COALESCE(total_approved, 0)::NUMERIC
-                              / NULLIF(target_titik, 0)::NUMERIC * 0.5
-                          )
-                      ) * 100,
-                      2
-                  )
+				     AND total_checklist > 0
+				     AND COALESCE(target_titik, 0) > 0
+				
+                    THEN ROUND(
+                        (
+                            (
+                                sesuai::NUMERIC
+                                / NULLIF(total_checklist, 0) * 0.05
+                            )
+                            +
+                            (
+                                LEAST(
+                                    COALESCE(total_approved, 0)::NUMERIC
+                                    / NULLIF(target_titik, 0)::NUMERIC,
+                                    1.0
+                                ) * 0.95
+                            )
+                        ) * 100,
+                        2
+                    )
 
                   WHEN total_checklist > 0
 
@@ -340,21 +371,64 @@ export async function GET(request: NextRequest) {
       -- ============================================
 
       stage_with_timeline AS (
-          SELECT
-              sp.*,
-              td.masuk_tahapan_at,
-              td.keluar_tahapan_at,
-              td.tgl_mulai_timeline,
-              td.tgl_selesai_timeline,
-              td.status_mulai,
-              td.status_selesai
+    SELECT
+        sp.*,
+        td.masuk_tahapan_at,
+        td.keluar_tahapan_at,
+        td.tgl_mulai_timeline,
+        td.tgl_selesai_timeline,
+        td.status_mulai,
 
-          FROM stage_progress sp
+        CASE
+            -- TAHAP 4: total_approved vs target_titik
+            WHEN sp.tahapan_kegiatan_id IN (3, 10, 17, 25) THEN
+                CASE
+                    WHEN td.tgl_selesai_timeline IS NULL
+                        THEN 'JADWAL BELUM TERSEDIA'
+                    WHEN COALESCE(sp.target_titik, 0) = 0
+                        THEN 'TARGET BELUM TERSEDIA'
+                    -- belum terpenuhi, deadline belum lewat
+                    WHEN COALESCE(sp.total_approved, 0) < sp.target_titik
+                         AND CURRENT_DATE <= td.tgl_selesai_timeline::DATE
+                        THEN 'ON PROGRESS'
+                    -- belum terpenuhi, deadline sudah lewat
+                    WHEN COALESCE(sp.total_approved, 0) < sp.target_titik
+                         AND CURRENT_DATE > td.tgl_selesai_timeline::DATE
+                        THEN 'TERLAMBAT'
+                    -- sisanya: target terpenuhi
+                    ELSE 'TEPAT WAKTU'
+                END
 
-          LEFT JOIN timeline_detail td
-              ON td.berkas_id = sp.berkas_id
-              AND td.tahapan_kegiatan_id = sp.tahapan_kegiatan_id
-      ),
+            -- TAHAP 5: zona_std_sesuai vs jumlah_zona
+            WHEN sp.tahapan_kegiatan_id IN (4, 11, 18, 26) THEN
+                CASE
+                    WHEN td.tgl_selesai_timeline IS NULL
+                        THEN 'JADWAL BELUM TERSEDIA'
+                    when td.masuk_tahapan_at is null
+                    	then 'Berkas Belum Dimulai'
+                    WHEN COALESCE(sp.jumlah_zona, '0') !~ '^\d+$'
+                         OR COALESCE(sp.jumlah_zona, '0')::INT = 0
+                        THEN 'ON PROGRESS'
+                    WHEN td.masuk_tahapan_at is not null
+                    	 and COALESCE(sp.zona_std_sesuai, '0')::INT < sp.jumlah_zona::INT
+                         AND CURRENT_DATE <= td.tgl_selesai_timeline::DATE
+                        THEN 'ON PROGRESS'
+                    WHEN td.masuk_tahapan_at is not null
+                    	 and COALESCE(sp.zona_std_sesuai, '0')::INT < sp.jumlah_zona::INT
+                         AND CURRENT_DATE > td.tgl_selesai_timeline::DATE
+                        THEN 'TERLAMBAT'
+                    ELSE 'TEPAT WAKTU'
+                END
+
+            -- Tahap lain: logika lama
+            ELSE td.status_selesai
+        END AS status_selesai
+
+    FROM stage_progress sp
+    LEFT JOIN timeline_detail td
+        ON td.berkas_id = sp.berkas_id
+        AND td.tahapan_kegiatan_id = sp.tahapan_kegiatan_id
+),
 
       -- ============================================
       -- 8. REALISASI FISIK PER BERKAS
@@ -404,7 +478,8 @@ export async function GET(request: NextRequest) {
                       'belum_diperiksa', belum_diperiksa,
                       'target_titik', target_titik,
                       'total_approved', total_approved,
-
+                      'jumlah_zona', jumlah_zona,
+                      'std_sesuai', zona_std_sesuai,
                       'realisasi',
                           CASE
                               WHEN ord = 8 AND total_checklist = 0
