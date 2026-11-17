@@ -16,6 +16,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Printer,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -112,6 +113,36 @@ const FINISHED_STAGE_IDS = new Set([29, 30]);
 // Jumlah kontrak per halaman (pagination per kontrak agar rowSpan utuh)
 const PAGE_SIZE = 5;
 const SEARCH_DEBOUNCE_MS = 400;
+
+// ------------------------------------------------------
+// PRINT
+// A3 landscape, margin 8mm => lebar area cetak ± 404mm ≈ 1527px.
+// Untuk A4 landscape: ubah `size: A4 landscape` dan lebar 281mm ≈ 1062px.
+// ------------------------------------------------------
+const PRINT_PAGE_WIDTH_PX = 1527;
+
+const PRINT_CSS = `
+@page { size: A3 landscape; margin: 8mm; }
+
+@media print {
+  html, body { background: #fff !important; }
+
+  .print-table [data-slot="table-container"] { overflow: visible !important; }
+
+  .print-table td,
+  .print-table th {
+    position: static !important;
+  }
+
+  .print-table thead { display: table-header-group; }
+  .print-table tr { break-inside: avoid; page-break-inside: avoid; }
+
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+`;
 
 // ======================================================
 // FORMATTER (dibuat sekali, bukan di setiap panggilan)
@@ -721,7 +752,7 @@ const ContractGroup = memo(function ContractGroup({
 // MAIN COMPONENT
 // ======================================================
 
-export default function DetailPresentasePerusahaan() {
+export default function DetailPresentasePerusahaantr2() {
   // `searchInput` mengikuti ketikan (ringan), `search` baru berubah
   // setelah user berhenti mengetik. Hanya `search` yang memicu filter.
   const [searchInput, setSearchInput] = useState("");
@@ -739,6 +770,11 @@ export default function DetailPresentasePerusahaan() {
 
   const tableRef = useRef<HTMLDivElement>(null);
   const listTopRef = useRef<HTMLDivElement>(null);
+
+  // State untuk fitur cetak
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [printZoom, setPrintZoom] = useState(1);
+  const tableWrapRef = useRef<HTMLDivElement>(null);
 
   // ====================================================
   // FETCH SEMUA KONTRAK
@@ -895,6 +931,39 @@ export default function DetailPresentasePerusahaan() {
   };
 
   // ====================================================
+  // CETAK
+  // Saat mencetak, seluruh kontrak hasil filter dirender (bukan hanya
+  // halaman aktif), lalu tabel diskalakan agar muat satu lebar kertas.
+  // ====================================================
+
+  const handlePrint = () => {
+    const table = tableWrapRef.current?.querySelector("table");
+    const tableWidth = table?.scrollWidth ?? 0;
+
+    setPrintZoom(
+      tableWidth > PRINT_PAGE_WIDTH_PX ? PRINT_PAGE_WIDTH_PX / tableWidth : 1,
+    );
+    setIsPrinting(true);
+  };
+
+  useEffect(() => {
+    if (!isPrinting) return;
+
+    const done = () => setIsPrinting(false);
+    window.addEventListener("afterprint", done);
+
+    // beri waktu React merender seluruh baris sebelum dialog print terbuka
+    const timer = window.setTimeout(() => window.print(), 300);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("afterprint", done);
+    };
+  }, [isPrinting]);
+
+  const rowsToRender = isPrinting ? filteredContracts : pagedContracts;
+
+  // ====================================================
   // DATA SUMMARY SELURUH KONTRAK (satu loop)
   // ====================================================
 
@@ -980,7 +1049,9 @@ export default function DetailPresentasePerusahaan() {
   const isTyping = searchInput !== search;
 
   return (
-    <div className="space-y-5 p-4 md:p-6">
+    <div className="space-y-5 p-4 md:p-6 print:p-0">
+      <style>{PRINT_CSS}</style>
+
       {/* HEADER */}
 
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
@@ -1009,17 +1080,29 @@ export default function DetailPresentasePerusahaan() {
           </div>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => refetch()}
-          disabled={isFetching}
-        >
-          <RefreshCw
-            className={`mr-2 size-3.5 ${isFetching ? "animate-spin" : ""}`}
-          />
-          Refresh
-        </Button>
+        {/* TOMBOL DI POJOK KANAN ATAS */}
+        <div className="flex items-center gap-2 print:hidden">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isFetching}
+          >
+            <RefreshCw
+              className={`mr-2 size-3.5 ${isFetching ? "animate-spin" : ""}`}
+            />
+            Refresh
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={handlePrint}
+            disabled={isPrinting || filteredContracts.length === 0}
+          >
+            <Printer className="mr-2 size-3.5" />
+            {isPrinting ? "Menyiapkan..." : "Cetak"}
+          </Button>
+        </div>
       </div>
 
       {/* SUMMARY */}
@@ -1099,7 +1182,7 @@ export default function DetailPresentasePerusahaan() {
 
       <div
         ref={listTopRef}
-        className="flex scroll-mt-4 flex-col justify-between gap-3 sm:flex-row sm:items-center"
+        className="flex scroll-mt-4 flex-col justify-between gap-3 sm:flex-row sm:items-center print:hidden"
       >
         <div>
           <h4 className="font-bold">Rincian Capaian Kabupaten</h4>
@@ -1146,10 +1229,15 @@ export default function DetailPresentasePerusahaan() {
       {/* TABLE */}
 
       <div
+        ref={tableWrapRef}
         className={cn(
-          "w-full overflow-x-auto rounded-lg border bg-background transition-opacity",
+          "print-table w-full overflow-x-auto rounded-lg border bg-background transition-opacity",
+          "print:overflow-visible print:rounded-none print:border-0",
           isTyping && "opacity-70",
         )}
+        style={
+          isPrinting ? ({ zoom: printZoom } as React.CSSProperties) : undefined
+        }
       >
         <Table className="w-max min-w-full">
           <TableHeader>
@@ -1196,7 +1284,7 @@ export default function DetailPresentasePerusahaan() {
           </TableHeader>
 
           <TableBody>
-            {pagedContracts.length === 0 ? (
+            {rowsToRender.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={stages.length + 3}
@@ -1208,11 +1296,15 @@ export default function DetailPresentasePerusahaan() {
                 </TableCell>
               </TableRow>
             ) : (
-              pagedContracts.map((contract, index) => (
+              rowsToRender.map((contract, index) => (
                 <ContractGroup
                   key={contract.no_kontrak}
                   contract={contract}
-                  number={(currentPage - 1) * PAGE_SIZE + index + 1}
+                  number={
+                    isPrinting
+                      ? index + 1
+                      : (currentPage - 1) * PAGE_SIZE + index + 1
+                  }
                   stages={stages}
                 />
               ))
@@ -1231,7 +1323,7 @@ export default function DetailPresentasePerusahaan() {
         </p>
 
         {filteredContracts.length > PAGE_SIZE && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 print:hidden">
             <Button
               variant="outline"
               size="sm"
