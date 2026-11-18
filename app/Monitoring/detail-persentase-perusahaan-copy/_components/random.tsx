@@ -1,6 +1,7 @@
 "use client";
 
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -44,9 +45,10 @@ import {
 import { basePath } from "@/constants/menu-sidebar";
 import { formatRupiah } from "@/constants/auth-constants";
 import { cn } from "@/lib/utils";
+import { PrintTable } from "./detail-perusahaan";
 
 // ======================================================
-// TYPES (tidak diubah)
+// TYPES
 // ======================================================
 
 type Tahapan = {
@@ -61,8 +63,8 @@ type Tahapan = {
   tidak_sesuai: number;
   belum_diperiksa: number;
   total_checklist: number;
-  std_sesuai: string | number; // tambahan
-  jumlah_zona: string | number; // tambahan
+  std_sesuai: string | number;
+  jumlah_zona: string | number;
   masuk_tahapan_at: string | null;
   keluar_tahapan_at: string | null;
   tgl_mulai_timeline: string | null;
@@ -114,33 +116,37 @@ const FINISHED_STAGE_IDS = new Set([29, 30]);
 const PAGE_SIZE = 5;
 const SEARCH_DEBOUNCE_MS = 400;
 
-// ------------------------------------------------------
-// PRINT
-// A3 landscape, margin 8mm => lebar area cetak ± 404mm ≈ 1527px.
-// Untuk A4 landscape: ubah `size: A4 landscape` dan lebar 281mm ≈ 1062px.
-// ------------------------------------------------------
-const PRINT_PAGE_WIDTH_PX = 1527;
+// Cetak: jumlah kolom tahapan per lembar.
+// A3 landscape = 7. Jika pakai A4 landscape: ubah jadi 4 dan
+// ganti `size: A3 landscape` pada PRINT_CSS menjadi `size: A4 landscape`.
+const PRINT_STAGES_PER_PAGE = 7;
 
 const PRINT_CSS = `
 @page { size: A3 landscape; margin: 8mm; }
 
+[data-print-root] { display: none; }
+
 @media print {
-  html, body { background: #fff !important; }
+  body > *:not([data-print-root]) { display: none !important; }
+  [data-print-root] { display: block !important; }
 
-  .print-table [data-slot="table-container"] { overflow: visible !important; }
-
-  .print-table td,
-  .print-table th {
-    position: static !important;
+  html, body {
+    background: #fff !important;
+    height: auto !important;
+    overflow: visible !important;
   }
-
-  .print-table thead { display: table-header-group; }
-  .print-table tr { break-inside: avoid; page-break-inside: avoid; }
 
   * {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+
+  .pt-section { break-after: page; page-break-after: always; }
+  .pt-section:last-child { break-after: auto; page-break-after: auto; }
+
+  .pt-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+  .pt-table thead { display: table-header-group; }
+  .pt-table tr { break-inside: avoid; page-break-inside: avoid; }
 }
 `;
 
@@ -749,6 +755,155 @@ const ContractGroup = memo(function ContractGroup({
 });
 
 // ======================================================
+// PRINT TABLE
+// Dirender lewat portal ke <body>, lalu semua elemen lain disembunyikan
+// saat cetak. Dengan begitu layout (sidebar, overflow, tinggi tetap)
+// tidak memotong tabel. Kolom tahapan dibagi per lembar, tanpa zoom.
+// ======================================================
+
+const printCell: React.CSSProperties = {
+  border: "1px solid #9ca3af",
+  padding: "3px 4px",
+  verticalAlign: "top",
+  fontSize: 9,
+  lineHeight: 1.3,
+  overflowWrap: "anywhere",
+};
+
+function printStatusColor(status: string | null) {
+  if (status === "TERLAMBAT") return "#b91c1c";
+  if (status === "TEPAT WAKTU") return "#047857";
+  return "#6b7280";
+}
+
+function PrintStageTd({ stage }: { stage?: Tahapan }) {
+  if (!stage) {
+    return <td style={{ ...printCell, textAlign: "center" }}>-</td>;
+  }
+
+  const isPoint = STAGE_POINT_IDS.has(stage.tahapan_kegiatan_id);
+  const isZone = STAGE_POINT_IDS2.has(stage.tahapan_kegiatan_id);
+
+  return (
+    <td style={printCell}>
+      <div style={{ fontWeight: 700 }}>
+        {formatPercent(toNumber(stage.realisasi))}
+      </div>
+
+      {isPoint && (
+        <div>
+          Titik: {formatNumber(toNumber(stage.total_approved))}/
+          {formatNumber(toNumber(stage.target_titik))}
+        </div>
+      )}
+
+      {isZone && (
+        <div>
+          Zona: {formatNumber(toNumber(stage.std_sesuai))}/
+          {formatNumber(toNumber(stage.jumlah_zona))}
+        </div>
+      )}
+
+      <div>
+        <span style={{ color: "#047857" }}>✓ {stage.sesuai}</span>{" "}
+        <span style={{ color: "#b91c1c" }}>✕ {stage.tidak_sesuai}</span>{" "}
+        <span style={{ color: "#6b7280" }}>
+          ({stage.sesuai}/{stage.total_checklist})
+        </span>
+      </div>
+
+      <div
+        style={{ borderTop: "1px dashed #d1d5db", marginTop: 2, paddingTop: 2 }}
+      >
+        <div>
+          <b>Masuk:</b> {formatDate(stage.masuk_tahapan_at)}
+        </div>
+        <div style={{ color: "#6b7280" }}>
+          DL {formatDate(stage.tgl_mulai_timeline)} ·{" "}
+          <span style={{ color: printStatusColor(stage.status_mulai) }}>
+            {stage.status_mulai || "-"}
+          </span>
+        </div>
+
+        <div style={{ marginTop: 1 }}>
+          <b>Keluar:</b> {formatDate(stage.keluar_tahapan_at)}
+        </div>
+        <div style={{ color: "#6b7280" }}>
+          DL {formatDate(stage.tgl_selesai_timeline)} ·{" "}
+          <span style={{ color: printStatusColor(stage.status_selesai) }}>
+            {stage.status_selesai || "-"}
+          </span>
+        </div>
+      </div>
+    </td>
+  );
+}
+
+function PrintContractRows({
+  contract,
+  number,
+  chunk,
+  stageMaps,
+}: {
+  contract: ContractItem;
+  number: number;
+  chunk: Tahapan[];
+  stageMaps: Map<number, Map<number, Tahapan>>;
+}) {
+  return (
+    <>
+      {/* Pita perusahaan */}
+      <tr>
+        <td
+          colSpan={chunk.length + 1}
+          style={{
+            ...printCell,
+            background: "#dbeafe",
+            fontWeight: 700,
+            fontSize: 10,
+          }}
+        >
+          {number}. {contract.nama_perusahaan}
+          <span style={{ fontWeight: 400 }}>
+            {" "}
+            · Kontrak: {contract.no_kontrak} · Anggaran:{" "}
+            {formatRupiah(toNumber(contract.anggaran))} ·{" "}
+            {contract.total_berkas} Berkas · Realisasi:{" "}
+            {formatPercent(toNumber(contract.realisasi_fisik))}
+          </span>
+        </td>
+      </tr>
+
+      {(contract.detail ?? []).map((record) => (
+        <tr key={`${contract.no_kontrak}-${record.berkas_id}`}>
+          <td style={printCell}>
+            <div style={{ fontWeight: 700, fontSize: 10 }}>
+              {record.kabupaten || "-"}
+            </div>
+            <div>
+              {record.skala || "-"} · {record.no_berkas || "-"}
+            </div>
+            <div>
+              {record.seluruh_tahapan_selesai ? "Selesai" : "Dalam Proses"} ·{" "}
+              <b>{formatPercent(toNumber(record.realisasi_fisik))}</b>
+            </div>
+          </td>
+
+          {chunk.map((s) => (
+            <PrintStageTd
+              key={s.tahapan_kegiatan_id}
+              stage={stageMaps
+                .get(record.berkas_id)
+                ?.get(s.tahapan_kegiatan_id)}
+            />
+          ))}
+        </tr>
+      ))}
+    </>
+  );
+}
+
+// ======================================================
 // MAIN COMPONENT
 // ======================================================
 
@@ -773,8 +928,8 @@ export default function DetailPresentasePerusahaantr2() {
 
   // State untuk fitur cetak
   const [isPrinting, setIsPrinting] = useState(false);
-  const [printZoom, setPrintZoom] = useState(1);
-  const tableWrapRef = useRef<HTMLDivElement>(null);
+  const handlePrint = () => setIsPrinting(true);
+  const handlePrintDone = useCallback(() => setIsPrinting(false), []);
 
   // ====================================================
   // FETCH SEMUA KONTRAK
@@ -931,39 +1086,6 @@ export default function DetailPresentasePerusahaantr2() {
   };
 
   // ====================================================
-  // CETAK
-  // Saat mencetak, seluruh kontrak hasil filter dirender (bukan hanya
-  // halaman aktif), lalu tabel diskalakan agar muat satu lebar kertas.
-  // ====================================================
-
-  const handlePrint = () => {
-    const table = tableWrapRef.current?.querySelector("table");
-    const tableWidth = table?.scrollWidth ?? 0;
-
-    setPrintZoom(
-      tableWidth > PRINT_PAGE_WIDTH_PX ? PRINT_PAGE_WIDTH_PX / tableWidth : 1,
-    );
-    setIsPrinting(true);
-  };
-
-  useEffect(() => {
-    if (!isPrinting) return;
-
-    const done = () => setIsPrinting(false);
-    window.addEventListener("afterprint", done);
-
-    // beri waktu React merender seluruh baris sebelum dialog print terbuka
-    const timer = window.setTimeout(() => window.print(), 300);
-
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("afterprint", done);
-    };
-  }, [isPrinting]);
-
-  const rowsToRender = isPrinting ? filteredContracts : pagedContracts;
-
-  // ====================================================
   // DATA SUMMARY SELURUH KONTRAK (satu loop)
   // ====================================================
 
@@ -1049,9 +1171,7 @@ export default function DetailPresentasePerusahaantr2() {
   const isTyping = searchInput !== search;
 
   return (
-    <div className="space-y-5 p-4 md:p-6 print:p-0">
-      <style>{PRINT_CSS}</style>
-
+    <div className="space-y-5 p-4 md:p-6">
       {/* HEADER */}
 
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
@@ -1081,7 +1201,7 @@ export default function DetailPresentasePerusahaantr2() {
         </div>
 
         {/* TOMBOL DI POJOK KANAN ATAS */}
-        <div className="flex items-center gap-2 print:hidden">
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -1182,7 +1302,7 @@ export default function DetailPresentasePerusahaantr2() {
 
       <div
         ref={listTopRef}
-        className="flex scroll-mt-4 flex-col justify-between gap-3 sm:flex-row sm:items-center print:hidden"
+        className="flex scroll-mt-4 flex-col justify-between gap-3 sm:flex-row sm:items-center"
       >
         <div>
           <h4 className="font-bold">Rincian Capaian Kabupaten</h4>
@@ -1229,15 +1349,10 @@ export default function DetailPresentasePerusahaantr2() {
       {/* TABLE */}
 
       <div
-        ref={tableWrapRef}
         className={cn(
-          "print-table w-full overflow-x-auto rounded-lg border bg-background transition-opacity",
-          "print:overflow-visible print:rounded-none print:border-0",
+          "w-full overflow-x-auto rounded-lg border bg-background transition-opacity",
           isTyping && "opacity-70",
         )}
-        style={
-          isPrinting ? ({ zoom: printZoom } as React.CSSProperties) : undefined
-        }
       >
         <Table className="w-max min-w-full">
           <TableHeader>
@@ -1284,7 +1399,7 @@ export default function DetailPresentasePerusahaantr2() {
           </TableHeader>
 
           <TableBody>
-            {rowsToRender.length === 0 ? (
+            {pagedContracts.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={stages.length + 3}
@@ -1296,15 +1411,11 @@ export default function DetailPresentasePerusahaantr2() {
                 </TableCell>
               </TableRow>
             ) : (
-              rowsToRender.map((contract, index) => (
+              pagedContracts.map((contract, index) => (
                 <ContractGroup
                   key={contract.no_kontrak}
                   contract={contract}
-                  number={
-                    isPrinting
-                      ? index + 1
-                      : (currentPage - 1) * PAGE_SIZE + index + 1
-                  }
+                  number={(currentPage - 1) * PAGE_SIZE + index + 1}
                   stages={stages}
                 />
               ))
@@ -1323,7 +1434,7 @@ export default function DetailPresentasePerusahaantr2() {
         </p>
 
         {filteredContracts.length > PAGE_SIZE && (
-          <div className="flex items-center gap-2 print:hidden">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -1350,6 +1461,15 @@ export default function DetailPresentasePerusahaantr2() {
           </div>
         )}
       </div>
+
+      {/* KOMPONEN CETAK (portal ke <body>, hanya muncul saat mencetak) */}
+      {isPrinting && (
+        <PrintTable
+          contracts={filteredContracts}
+          stages={stages}
+          onDone={handlePrintDone}
+        />
+      )}
     </div>
   );
 }

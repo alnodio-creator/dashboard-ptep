@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -44,63 +44,14 @@ import {
 import { basePath } from "@/constants/menu-sidebar";
 import { formatRupiah } from "@/constants/auth-constants";
 import { cn } from "@/lib/utils";
-
-// ======================================================
-// TYPES (tidak diubah)
-// ======================================================
-
-type Tahapan = {
-  tahapan_kegiatan_id: number;
-  nama_tahapan: string;
-  urutan: number;
-  bobot: number;
-  realisasi: number | null;
-  target_titik: number;
-  total_approved: number;
-  sesuai: number;
-  tidak_sesuai: number;
-  belum_diperiksa: number;
-  total_checklist: number;
-  std_sesuai: string | number; // tambahan
-  jumlah_zona: string | number; // tambahan
-  masuk_tahapan_at: string | null;
-  keluar_tahapan_at: string | null;
-  tgl_mulai_timeline: string | null;
-  tgl_selesai_timeline: string | null;
-  status_mulai: string | null;
-  status_selesai: string | null;
-};
-
-type KabupatenDetail = {
-  berkas_id: number;
-  no_berkas: string;
-  kode_kegiatan: string;
-  skala: string;
-  kabupaten: string;
-  realisasi_fisik: number;
-  seluruh_tahapan_selesai: boolean;
-  tahapan: Tahapan[];
-};
-
-type ContractItem = {
-  nama_perusahaan: string;
-  no_kontrak: string;
-  anggaran: number;
-  kanwilid: string;
-  total_berkas: number;
-  realisasi_fisik: string | number;
-  seluruh_berkas_selesai: boolean;
-  detail: KabupatenDetail[];
-};
-
-type ApiResponse = {
-  success: boolean;
-  message: string;
-  total: number;
-  data: ContractItem[];
-};
-
-type StatusFilter = "Filter Status" | "selesai" | "belum";
+import PrintTable from "./print-table";
+import {
+  ApiResponse,
+  ContractItem,
+  KabupatenDetail,
+  StatusFilter,
+  Tahapan,
+} from "../types/type";
 
 // ======================================================
 // CONSTANTS
@@ -113,36 +64,6 @@ const FINISHED_STAGE_IDS = new Set([29, 30]);
 // Jumlah kontrak per halaman (pagination per kontrak agar rowSpan utuh)
 const PAGE_SIZE = 5;
 const SEARCH_DEBOUNCE_MS = 400;
-
-// ------------------------------------------------------
-// PRINT
-// A3 landscape, margin 8mm => lebar area cetak ± 404mm ≈ 1527px.
-// Untuk A4 landscape: ubah `size: A4 landscape` dan lebar 281mm ≈ 1062px.
-// ------------------------------------------------------
-const PRINT_PAGE_WIDTH_PX = 1527;
-
-const PRINT_CSS = `
-@page { size: A3 landscape; margin: 8mm; }
-
-@media print {
-  html, body { background: #fff !important; }
-
-  .print-table [data-slot="table-container"] { overflow: visible !important; }
-
-  .print-table td,
-  .print-table th {
-    position: static !important;
-  }
-
-  .print-table thead { display: table-header-group; }
-  .print-table tr { break-inside: avoid; page-break-inside: avoid; }
-
-  * {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-}
-`;
 
 // ======================================================
 // FORMATTER (dibuat sekali, bukan di setiap panggilan)
@@ -752,7 +673,7 @@ const ContractGroup = memo(function ContractGroup({
 // MAIN COMPONENT
 // ======================================================
 
-export default function DetailPresentasePerusahaantr2() {
+export default function DetailPresentasePerusahaan() {
   // `searchInput` mengikuti ketikan (ringan), `search` baru berubah
   // setelah user berhenti mengetik. Hanya `search` yang memicu filter.
   const [searchInput, setSearchInput] = useState("");
@@ -773,8 +694,8 @@ export default function DetailPresentasePerusahaantr2() {
 
   // State untuk fitur cetak
   const [isPrinting, setIsPrinting] = useState(false);
-  const [printZoom, setPrintZoom] = useState(1);
-  const tableWrapRef = useRef<HTMLDivElement>(null);
+  const handlePrint = () => setIsPrinting(true);
+  const handlePrintDone = useCallback(() => setIsPrinting(false), []);
 
   // ====================================================
   // FETCH SEMUA KONTRAK
@@ -930,22 +851,6 @@ export default function DetailPresentasePerusahaantr2() {
     listTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  // ====================================================
-  // CETAK
-  // Saat mencetak, seluruh kontrak hasil filter dirender (bukan hanya
-  // halaman aktif), lalu tabel diskalakan agar muat satu lebar kertas.
-  // ====================================================
-
-  const handlePrint = () => {
-    const table = tableWrapRef.current?.querySelector("table");
-    const tableWidth = table?.scrollWidth ?? 0;
-
-    setPrintZoom(
-      tableWidth > PRINT_PAGE_WIDTH_PX ? PRINT_PAGE_WIDTH_PX / tableWidth : 1,
-    );
-    setIsPrinting(true);
-  };
-
   useEffect(() => {
     if (!isPrinting) return;
 
@@ -1050,8 +955,6 @@ export default function DetailPresentasePerusahaantr2() {
 
   return (
     <div className="space-y-5 p-4 md:p-6 print:p-0">
-      <style>{PRINT_CSS}</style>
-
       {/* HEADER */}
 
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
@@ -1229,15 +1132,10 @@ export default function DetailPresentasePerusahaantr2() {
       {/* TABLE */}
 
       <div
-        ref={tableWrapRef}
         className={cn(
-          "print-table w-full overflow-x-auto rounded-lg border bg-background transition-opacity",
-          "print:overflow-visible print:rounded-none print:border-0",
+          "w-full overflow-x-auto rounded-lg border bg-background transition-opacity",
           isTyping && "opacity-70",
         )}
-        style={
-          isPrinting ? ({ zoom: printZoom } as React.CSSProperties) : undefined
-        }
       >
         <Table className="w-max min-w-full">
           <TableHeader>
@@ -1350,6 +1248,14 @@ export default function DetailPresentasePerusahaantr2() {
           </div>
         )}
       </div>
+      {/* KOMPONEN CETAK (portal ke <body>, hanya muncul saat mencetak) */}
+      {isPrinting && (
+        <PrintTable
+          contracts={filteredContracts}
+          stages={stages}
+          onDone={handlePrintDone}
+        />
+      )}
     </div>
   );
 }
