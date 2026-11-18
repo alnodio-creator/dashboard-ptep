@@ -1,7 +1,6 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -107,7 +106,7 @@ type StatusFilter = "Filter Status" | "selesai" | "belum";
 // ======================================================
 // CONSTANTS
 // ======================================================
-
+const dio = new Set([3, 4, 10, 11, 17, 18, 25, 26]);
 const STAGE_POINT_IDS = new Set([3, 10, 17, 25]);
 const STAGE_POINT_IDS2 = new Set([4, 11, 18, 26]);
 const FINISHED_STAGE_IDS = new Set([29, 30]);
@@ -115,40 +114,6 @@ const FINISHED_STAGE_IDS = new Set([29, 30]);
 // Jumlah kontrak per halaman (pagination per kontrak agar rowSpan utuh)
 const PAGE_SIZE = 5;
 const SEARCH_DEBOUNCE_MS = 400;
-
-// Cetak: jumlah kolom tahapan per lembar.
-// A3 landscape = 7. Jika pakai A4 landscape: ubah jadi 4 dan
-// ganti `size: A3 landscape` pada PRINT_CSS menjadi `size: A4 landscape`.
-const PRINT_STAGES_PER_PAGE = 7;
-
-const PRINT_CSS = `
-@page { size: A3 landscape; margin: 8mm; }
-
-[data-print-root] { display: none; }
-
-@media print {
-  body > *:not([data-print-root]) { display: none !important; }
-  [data-print-root] { display: block !important; }
-
-  html, body {
-    background: #fff !important;
-    height: auto !important;
-    overflow: visible !important;
-  }
-
-  * {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .pt-section { break-after: page; page-break-after: always; }
-  .pt-section:last-child { break-after: auto; page-break-after: auto; }
-
-  .pt-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
-  .pt-table thead { display: table-header-group; }
-  .pt-table tr { break-inside: avoid; page-break-inside: avoid; }
-}
-`;
 
 // ======================================================
 // FORMATTER (dibuat sekali, bukan di setiap panggilan)
@@ -753,155 +718,6 @@ const ContractGroup = memo(function ContractGroup({
     </>
   );
 });
-
-// ======================================================
-// PRINT TABLE
-// Dirender lewat portal ke <body>, lalu semua elemen lain disembunyikan
-// saat cetak. Dengan begitu layout (sidebar, overflow, tinggi tetap)
-// tidak memotong tabel. Kolom tahapan dibagi per lembar, tanpa zoom.
-// ======================================================
-
-const printCell: React.CSSProperties = {
-  border: "1px solid #9ca3af",
-  padding: "3px 4px",
-  verticalAlign: "top",
-  fontSize: 9,
-  lineHeight: 1.3,
-  overflowWrap: "anywhere",
-};
-
-function printStatusColor(status: string | null) {
-  if (status === "TERLAMBAT") return "#b91c1c";
-  if (status === "TEPAT WAKTU") return "#047857";
-  return "#6b7280";
-}
-
-function PrintStageTd({ stage }: { stage?: Tahapan }) {
-  if (!stage) {
-    return <td style={{ ...printCell, textAlign: "center" }}>-</td>;
-  }
-
-  const isPoint = STAGE_POINT_IDS.has(stage.tahapan_kegiatan_id);
-  const isZone = STAGE_POINT_IDS2.has(stage.tahapan_kegiatan_id);
-
-  return (
-    <td style={printCell}>
-      <div style={{ fontWeight: 700 }}>
-        {formatPercent(toNumber(stage.realisasi))}
-      </div>
-
-      {isPoint && (
-        <div>
-          Titik: {formatNumber(toNumber(stage.total_approved))}/
-          {formatNumber(toNumber(stage.target_titik))}
-        </div>
-      )}
-
-      {isZone && (
-        <div>
-          Zona: {formatNumber(toNumber(stage.std_sesuai))}/
-          {formatNumber(toNumber(stage.jumlah_zona))}
-        </div>
-      )}
-
-      <div>
-        <span style={{ color: "#047857" }}>✓ {stage.sesuai}</span>{" "}
-        <span style={{ color: "#b91c1c" }}>✕ {stage.tidak_sesuai}</span>{" "}
-        <span style={{ color: "#6b7280" }}>
-          ({stage.sesuai}/{stage.total_checklist})
-        </span>
-      </div>
-
-      <div
-        style={{ borderTop: "1px dashed #d1d5db", marginTop: 2, paddingTop: 2 }}
-      >
-        <div>
-          <b>Masuk:</b> {formatDate(stage.masuk_tahapan_at)}
-        </div>
-        <div style={{ color: "#6b7280" }}>
-          DL {formatDate(stage.tgl_mulai_timeline)} ·{" "}
-          <span style={{ color: printStatusColor(stage.status_mulai) }}>
-            {stage.status_mulai || "-"}
-          </span>
-        </div>
-
-        <div style={{ marginTop: 1 }}>
-          <b>Keluar:</b> {formatDate(stage.keluar_tahapan_at)}
-        </div>
-        <div style={{ color: "#6b7280" }}>
-          DL {formatDate(stage.tgl_selesai_timeline)} ·{" "}
-          <span style={{ color: printStatusColor(stage.status_selesai) }}>
-            {stage.status_selesai || "-"}
-          </span>
-        </div>
-      </div>
-    </td>
-  );
-}
-
-function PrintContractRows({
-  contract,
-  number,
-  chunk,
-  stageMaps,
-}: {
-  contract: ContractItem;
-  number: number;
-  chunk: Tahapan[];
-  stageMaps: Map<number, Map<number, Tahapan>>;
-}) {
-  return (
-    <>
-      {/* Pita perusahaan */}
-      <tr>
-        <td
-          colSpan={chunk.length + 1}
-          style={{
-            ...printCell,
-            background: "#dbeafe",
-            fontWeight: 700,
-            fontSize: 10,
-          }}
-        >
-          {number}. {contract.nama_perusahaan}
-          <span style={{ fontWeight: 400 }}>
-            {" "}
-            · Kontrak: {contract.no_kontrak} · Anggaran:{" "}
-            {formatRupiah(toNumber(contract.anggaran))} ·{" "}
-            {contract.total_berkas} Berkas · Realisasi:{" "}
-            {formatPercent(toNumber(contract.realisasi_fisik))}
-          </span>
-        </td>
-      </tr>
-
-      {(contract.detail ?? []).map((record) => (
-        <tr key={`${contract.no_kontrak}-${record.berkas_id}`}>
-          <td style={printCell}>
-            <div style={{ fontWeight: 700, fontSize: 10 }}>
-              {record.kabupaten || "-"}
-            </div>
-            <div>
-              {record.skala || "-"} · {record.no_berkas || "-"}
-            </div>
-            <div>
-              {record.seluruh_tahapan_selesai ? "Selesai" : "Dalam Proses"} ·{" "}
-              <b>{formatPercent(toNumber(record.realisasi_fisik))}</b>
-            </div>
-          </td>
-
-          {chunk.map((s) => (
-            <PrintStageTd
-              key={s.tahapan_kegiatan_id}
-              stage={stageMaps
-                .get(record.berkas_id)
-                ?.get(s.tahapan_kegiatan_id)}
-            />
-          ))}
-        </tr>
-      ))}
-    </>
-  );
-}
 
 // ======================================================
 // MAIN COMPONENT
