@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-
-import { formatRupiah } from "@/constants/auth-constants";
+import { CircleCheck, CircleX } from "lucide-react";
 
 // ======================================================
 // TYPES
@@ -153,7 +152,7 @@ const printCell: React.CSSProperties = {
   border: "1px solid #9ca3af",
   padding: "3px 4px",
   verticalAlign: "top",
-  fontSize: 9,
+  fontSize: 15,
   lineHeight: 1.3,
   overflowWrap: "anywhere",
 };
@@ -192,36 +191,20 @@ function PrintStageTd({ stage }: { stage?: Tahapan }) {
         </div>
       )}
 
-      <div>
-        <span style={{ color: "#047857" }}>✓ {stage.sesuai}</span>
-        <span style={{ color: "#b91c1c" }}>✕ {stage.tidak_sesuai}</span>
+      <div className="flex items-center gap-4">
+        <span className="flex items-center gap-1 text-emerald-700">
+          <CircleCheck className="h-4 w-4" />
+          {stage.sesuai}
+        </span>
+
+        <span className="flex items-center gap-1 text-red-700">
+          <CircleX className="h-4 w-4" />
+          {stage.tidak_sesuai}
+        </span>
+
         <span style={{ color: "#6b7280" }}>
           ({stage.sesuai}/{stage.total_checklist})
         </span>
-      </div>
-
-      <div
-        style={{ borderTop: "1px dashed #d1d5db", marginTop: 2, paddingTop: 2 }}
-      >
-        <div>
-          <b>Masuk:</b> {formatDate(stage.masuk_tahapan_at)}
-        </div>
-        <div style={{ color: "#6b7280" }}>
-          DL {formatDate(stage.tgl_mulai_timeline)} ·
-          <span style={{ color: printStatusColor(stage.status_mulai) }}>
-            {stage.status_mulai || "-"}
-          </span>
-        </div>
-
-        <div style={{ marginTop: 1 }}>
-          <b>Keluar:</b> {formatDate(stage.keluar_tahapan_at)}
-        </div>
-        <div style={{ color: "#6b7280" }}>
-          DL {formatDate(stage.tgl_selesai_timeline)} ·
-          <span style={{ color: printStatusColor(stage.status_selesai) }}>
-            {stage.status_selesai || "-"}
-          </span>
-        </div>
       </div>
     </td>
   );
@@ -248,14 +231,24 @@ function PrintContractRows({
             ...printCell,
             background: "#dbeafe",
             fontWeight: 700,
-            fontSize: 10,
+            fontSize: 17,
           }}
         >
           {number}. {contract.nama_perusahaan}
           <span style={{ fontWeight: 400 }}>
-            · Kontrak: {contract.no_kontrak} · Anggaran:
-            {formatRupiah(toNumber(contract.anggaran))} ·{contract.total_berkas}{" "}
-            Berkas · Realisasi:
+            {" "}
+            . Kontrak: {contract.no_kontrak} · Pagu Anggaran: Rp
+            {toNumber(contract.anggaran).toLocaleString("id-ID")},-
+          </span>
+          <span
+            style={{
+              color: "#15803d",
+              fontWeight: 800,
+              fontSize: 17,
+              marginLeft: 4,
+            }}
+          >
+            · Realisasi Fisik:{" "}
             {formatPercent(toNumber(contract.realisasi_fisik))}
           </span>
         </td>
@@ -264,7 +257,7 @@ function PrintContractRows({
       {(contract.detail ?? []).map((record) => (
         <tr key={`${contract.no_kontrak}-${record.berkas_id}`}>
           <td style={printCell}>
-            <div style={{ fontWeight: 700, fontSize: 10 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>
               {record.kabupaten || "-"}
             </div>
             <div>
@@ -416,7 +409,7 @@ export default function PrintTable({
                           background: termin.background,
                           textAlign: "center",
                           verticalAlign: "middle",
-                          fontSize: 11,
+                          fontSize: 17,
                           padding: "6px 4px",
                         }}
                       >

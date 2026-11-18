@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -17,6 +17,7 @@ import {
   Clock3,
   ChevronLeft,
   ChevronRight,
+  Printer,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import PrintTable from "./print-table-pembaruan";
 
 // ======================================================
 // TYPES
@@ -53,13 +55,16 @@ type Tahapan = {
   nama_tahapan: string;
   urutan: number;
   bobot: number;
-  realisasi: number;
-  target_titik: number;
-  total_approved: number;
+  total_checklist: number;
   sesuai: number;
   tidak_sesuai: number;
   belum_diperiksa: number;
-  total_checklist: number;
+  target_titik: number | null;
+  jumlah_zona: number | null;
+  std_sesuai: number | null;
+  total_approved: number | null;
+  realisasi: number | null;
+  // TIMELINE
   masuk_tahapan_at: string | null;
   keluar_tahapan_at: string | null;
   tgl_mulai_timeline: string | null;
@@ -112,6 +117,7 @@ type AnggaranFilter = "Filter Anggaran" | "PHLN" | "APBN" | "APBD";
 // ======================================================
 
 const STAGE_POINT_IDS = new Set([3, 10, 17, 25]);
+const STAGE_POINT_IDS2 = new Set([4, 11, 18, 26]);
 const FINISHED_STAGE_IDS = new Set([29, 30]);
 
 // Jumlah Kantor Wilayah (kontrak) per halaman.
@@ -341,6 +347,7 @@ const StageCell = memo(function StageCell({ stage }: { stage?: Tahapan }) {
 
   const value = toNumber(stage.realisasi);
   const isPointStage = STAGE_POINT_IDS.has(stage.tahapan_kegiatan_id);
+  const isPointStage2 = STAGE_POINT_IDS2.has(stage.tahapan_kegiatan_id);
 
   return (
     <TableCell className="min-w-60 border-l p-2 align-top">
@@ -365,9 +372,49 @@ const StageCell = memo(function StageCell({ stage }: { stage?: Tahapan }) {
               <span className="text-muted-foreground">
                 Titik disetujui / Target
               </span>
+
               <span className="font-bold tabular-nums">
                 {formatNumber(toNumber(stage.total_approved))}/
                 {formatNumber(toNumber(stage.target_titik))}
+              </span>
+
+              {toNumber(stage.target_titik) > 0 &&
+                Math.min(
+                  toNumber(stage.total_approved) / toNumber(stage.target_titik),
+                  1,
+                ) >= 1 && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs font-semibold text-emerald-600">
+                      100%
+                    </span>
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  </div>
+                )}
+            </div>
+
+            <div className="flex items-center gap-2 text-[10px]">
+              <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                ✓ {stage.sesuai} Sesuai
+              </span>
+
+              <span className="font-semibold text-red-600 dark:text-red-400">
+                ✕ {stage.tidak_sesuai} Tidak sesuai
+              </span>
+
+              <span className="font-semibold text-muted-foreground">
+                {stage.sesuai}/{stage.total_checklist} Keseluruhan
+              </span>
+            </div>
+          </div>
+        ) : isPointStage2 ? (
+          <div className="flex flex-col items-center justify-between gap-2 rounded-md border bg-muted/20 px-2 py-1.5">
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-muted-foreground">
+                Zona Std sesuai / Jumlah Zona
+              </span>
+              <span className="font-bold tabular-nums">
+                {formatNumber(toNumber(stage.std_sesuai))}/
+                {formatNumber(toNumber(stage.jumlah_zona))}
               </span>
             </div>
 
@@ -417,7 +464,7 @@ const StageCell = memo(function StageCell({ stage }: { stage?: Tahapan }) {
           </p>
 
           <TimelineRow
-            label="Mulai"
+            label="Masuk Tahapan pada"
             deadline={stage.tgl_mulai_timeline}
             actual={stage.masuk_tahapan_at}
             status={stage.status_mulai}
@@ -425,7 +472,7 @@ const StageCell = memo(function StageCell({ stage }: { stage?: Tahapan }) {
           />
 
           <TimelineRow
-            label="Selesai"
+            label="Keluar Tahapan pada"
             deadline={stage.tgl_selesai_timeline}
             actual={stage.keluar_tahapan_at}
             status={stage.status_selesai}
@@ -725,7 +772,10 @@ const ContractGroup = memo(function ContractGroup({
 // MAIN COMPONENT
 // ======================================================
 
-export default function DetailPresentasePembaruan() {
+export default function DetailMonitoring() {
+  const [chooseMenu, setChooseMenu] = useState<"Pembaruan" | "Pembuatan">(
+    "Pembaruan",
+  );
   // `searchInput` mengikuti ketikan (ringan, hanya re-render input),
   // `search` baru berubah setelah user berhenti mengetik.
   const [searchInput, setSearchInput] = useState("");
@@ -746,6 +796,11 @@ export default function DetailPresentasePembaruan() {
   const tableRef = useRef<HTMLDivElement>(null);
   const listTopRef = useRef<HTMLDivElement>(null);
 
+  // State untuk fitur cetak
+  const [isPrinting, setIsPrinting] = useState(false);
+  const handlePrint = () => setIsPrinting(true);
+  const handlePrintDone = useCallback(() => setIsPrinting(false), []);
+
   // ====================================================
   // FETCH
   // ====================================================
@@ -758,10 +813,19 @@ export default function DetailPresentasePembaruan() {
     refetch,
     isFetching,
   } = useQuery({
-    queryKey: ["monitoring-qc-berkas3"],
+    // Cache dibedakan berdasarkan menu
+    queryKey: ["monitoring-berkas", chooseMenu],
 
     queryFn: async (): Promise<ContractItem[]> => {
-      const response = await fetch(`${basePath}/api/monitoring-qc-berkas3`, {
+      // Tentukan API berdasarkan tombol yang dipilih
+      const apiUrl =
+        chooseMenu === "Pembaruan"
+          ? `${basePath}/api/monitoring-pembaruan`
+          : `${basePath}/api/monitoring-pembuatan`;
+
+      console.log("Fetching API:", apiUrl);
+
+      const response = await fetch(apiUrl, {
         method: "GET",
         cache: "no-store",
       });
@@ -779,7 +843,9 @@ export default function DetailPresentasePembaruan() {
       return result.data ?? [];
     },
 
-    staleTime: 1000 * 60 * 2,
+    // Selalu ambil data terbaru ketika menu dipilih kembali
+    staleTime: 0,
+    refetchOnMount: "always",
     refetchOnWindowFocus: false,
   });
 
@@ -996,42 +1062,83 @@ export default function DetailPresentasePembaruan() {
 
   return (
     <div className="space-y-5 p-4 md:p-6">
+      {/* MENU PEMBARUAN / PEMBUATAN */}
+      <div className="flex flex-wrap items-center gap-2 print:hidden">
+        <Button
+          variant={chooseMenu === "Pembaruan" ? "default" : "outline"}
+          onClick={() => setChooseMenu("Pembaruan")}
+          className={
+            chooseMenu === "Pembaruan"
+              ? "bg-blue-600 text-white hover:bg-blue-700"
+              : ""
+          }
+        >
+          Pembaruan
+        </Button>
+
+        <Button
+          variant={chooseMenu === "Pembuatan" ? "default" : "outline"}
+          onClick={() => setChooseMenu("Pembuatan")}
+          className={
+            chooseMenu === "Pembuatan"
+              ? "bg-blue-600 text-white hover:bg-blue-700"
+              : ""
+          }
+        >
+          Pembuatan
+        </Button>
+      </div>
+
       {/* HEADER */}
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <Building2 className="size-5 text-blue-600" />
+
             <h3 className="text-base font-bold">
-              Monitoring Realisasi Pembaruan Peta Nilai Tanah
+              Monitoring Realisasi Kegiatan ILASPP - {chooseMenu}
             </h3>
           </div>
 
           <p className="mt-1 text-sm text-muted-foreground">
-            Monitoring progres Kantor Wilayah, kabupaten, checklist, dan
-            timeline Pembaruan Peta Nilai Tanah
+            Monitoring progres perusahaan, kabupaten, checklist, dan timeline
+            seluruh kontrak.
           </p>
 
           <div className="mt-2 flex flex-wrap gap-2">
             <Badge variant="outline">
-              {formatNumber(contracts.length)} Kantor Wilayah
+              {formatNumber(contracts.length)} Kontrak
             </Badge>
+
             <Badge variant="outline">
               {formatNumber(summary.totalBerkas)} Berkas
             </Badge>
           </div>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => refetch()}
-          disabled={isFetching}
-        >
-          <RefreshCw
-            className={`mr-2 size-3.5 ${isFetching ? "animate-spin" : ""}`}
-          />
-          Refresh
-        </Button>
+        {/* TOMBOL DI POJOK KANAN ATAS */}
+        <div className="flex items-center gap-2 print:hidden">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isFetching}
+          >
+            <RefreshCw
+              className={`mr-2 size-3.5 ${isFetching ? "animate-spin" : ""}`}
+            />
+            Refresh
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={handlePrint}
+            disabled={isPrinting || filteredContracts.length === 0}
+          >
+            <Printer className="mr-2 size-3.5" />
+            {isPrinting ? "Menyiapkan..." : "Cetak"}
+          </Button>
+        </div>
       </div>
 
       {/* SUMMARY */}
@@ -1269,6 +1376,14 @@ export default function DetailPresentasePembaruan() {
           </div>
         )}
       </div>
+      {/* KOMPONEN CETAK (portal ke <body>, hanya muncul saat mencetak) */}
+      {isPrinting && (
+        <PrintTable
+          contracts={filteredContracts}
+          stages={stages}
+          onDone={handlePrintDone}
+        />
+      )}
     </div>
   );
 }

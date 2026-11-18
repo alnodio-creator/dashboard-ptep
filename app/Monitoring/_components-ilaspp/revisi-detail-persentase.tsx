@@ -851,21 +851,6 @@ export default function DetailPresentasePerusahaan() {
     listTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  useEffect(() => {
-    if (!isPrinting) return;
-
-    const done = () => setIsPrinting(false);
-    window.addEventListener("afterprint", done);
-
-    // beri waktu React merender seluruh baris sebelum dialog print terbuka
-    const timer = window.setTimeout(() => window.print(), 300);
-
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("afterprint", done);
-    };
-  }, [isPrinting]);
-
   const rowsToRender = isPrinting ? filteredContracts : pagedContracts;
 
   // ====================================================
