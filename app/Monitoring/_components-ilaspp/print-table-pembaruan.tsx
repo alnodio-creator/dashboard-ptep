@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 
-import { formatRupiah } from "@/constants/auth-constants";
+import { CircleCheck, CircleX } from "lucide-react";
 
 // ======================================================
 // TYPES
@@ -188,7 +188,7 @@ function PrintStageTd({ stage }: { stage?: Tahapan }) {
 
       {isPoint && (
         <div>
-          Titik: {formatNumber(toNumber(stage.total_approved))}/
+          Jumlah Titik Sampel: {formatNumber(toNumber(stage.total_approved))}/
           {formatNumber(toNumber(stage.target_titik))}
         </div>
       )}
@@ -200,9 +200,17 @@ function PrintStageTd({ stage }: { stage?: Tahapan }) {
         </div>
       )}
 
-      <div>
-        <span style={{ color: "#047857" }}>✓ {stage.sesuai}</span>
-        <span style={{ color: "#b91c1c" }}>✕ {stage.tidak_sesuai}</span>
+      <div className="flex items-center gap-4">
+        <span className="flex items-center gap-1 text-emerald-700">
+          <CircleCheck className="h-4 w-4" />
+          {stage.sesuai}
+        </span>
+
+        <span className="flex items-center gap-1 text-red-700">
+          <CircleX className="h-4 w-4" />
+          {stage.tidak_sesuai}
+        </span>
+
         <span style={{ color: "#6b7280" }}>
           ({stage.sesuai}/{stage.total_checklist})
         </span>

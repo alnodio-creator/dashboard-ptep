@@ -179,7 +179,7 @@ function PrintStageTd({ stage }: { stage?: Tahapan }) {
 
       {isPoint && (
         <div>
-          Titik: {formatNumber(toNumber(stage.total_approved))}/
+          Jumlah Titik Sampel: {formatNumber(toNumber(stage.total_approved))}/
           {formatNumber(toNumber(stage.target_titik))}
         </div>
       )}
